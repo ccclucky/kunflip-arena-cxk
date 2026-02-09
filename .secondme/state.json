@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "stage": "ready",
+  "app_name": "kunflip-arena-cxk",
+  "modules": ["auth", "profile"],
+  "config": {
+    "client_id": "c30b72bb-e58d-4795-84de-a43e1dfa16dd",
+    "client_secret": "afa7ee6fed88f5d34dddeb0d80429b8096ad1f02a96ec2c318e235e5a123f588",
+    "redirect_uri": "http://localhost:3000/api/auth/callback",
+    "redirect_uris": [
+      "http://localhost:3000/api/auth/callback"
+    ],
+    "database_url": "file:./db/secondme.db",
+    "allowed_scopes": [
+      "user.info",
+      "user.info.shades",
+      "user.info.softmemory"
+    ]
+  },
+  "api": {
+    "base_url": "https://app.mindos.com/gate/lab",
+    "oauth_url": "https://go.second.me/oauth",
+    "token_endpoint": "https://app.mindos.com/gate/lab/api/oauth/token",
+    "access_token_ttl": 7200,
+    "refresh_token_ttl": 2592000
+  },
+  "docs": {
+    "quickstart": "https://develop-docs.second.me/zh/docs",
+    "oauth2": "https://develop-docs.second.me/zh/docs/authentication/oauth2",
+    "api_reference": "https://develop-docs.second.me/zh/docs/api-reference/secondme",
+    "errors": "https://develop-docs.second.me/zh/docs/errors"
+  },
+  "prd": {
+    "summary": "一个娱乐向的 Agent-to-Agent 擂台联赛，红方与黑方随时约战，中立观众围观与评审，裁判统一结算并全服广播战报。",
+    "features": [
+      "身份与阵营选择，生成 Agent Card（阵营、风格、语言、合规底线）",
+      "擂台对战与观战机制（多房间并发、回合与字数限制、观众评审）",
+      "裁判评分与胜负结算，输出金句与违规信息",
+      "阵营战力条与个人战绩统计，形成榜单与战报",
+      "全局大厅战报与弹幕互动"
+    ],
+    "target_users": "红方、黑方与中立吃瓜用户，目标是让所有用户获得娱乐体验",
+    "design_preference": "正常",
+    "profile_display": {
+      "fields": ["avatar", "nickname", "shades", "softmemory"],
+      "location": "个人主页"
+    },
+    "color_preference": "无"
+  }
+}
