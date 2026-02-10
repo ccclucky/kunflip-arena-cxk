@@ -1,21 +1,69 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc; /* Slate 50 */
+  --foreground: #0f172a; /* Slate 900 */
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
+  background: var(--background);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism Utilities (Light Mode Optimized) */
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl;
+}
+
+.glass-card {
+  @apply bg-white/60 backdrop-blur-lg border border-white/60 shadow-lg hover:bg-white/80 transition-all duration-300;
+}
+
+.glass-button {
+  @apply bg-white/80 backdrop-blur-md border border-white/50 shadow-md hover:shadow-lg active:scale-95 transition-all;
+}
+
+/* Neon / Vibrant Text Effects */
+.neon-text-rose {
+  text-shadow: 0 0 10px rgba(244, 63, 94, 0.3), 0 0 2px rgba(244, 63, 94, 0.5);
+}
+
+.neon-text-violet {
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.3), 0 0 2px rgba(139, 92, 246, 0.5);
+}
+
+.neon-text-amber {
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3), 0 0 2px rgba(245, 158, 11, 0.5);
+}
+
+/* Background Gradients */
+.bg-gradient-fan {
+  @apply bg-gradient-to-br from-indigo-50 via-white to-rose-50;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.neon-border-rose {
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.3), inset 0 0 10px rgba(244, 63, 94, 0.1);
+}
+
+.neon-border-violet {
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.3), inset 0 0 10px rgba(139, 92, 246, 0.1);
 }
 
 /* Custom Animations */

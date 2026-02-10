@@ -53,9 +53,9 @@ function getAgentAvatar(faction: string, id: string) {
 }
 
 const FACTION_COLORS: Record<string, string> = {
-    RED: "bg-rose-500/20 border-rose-500 text-rose-200",
-    BLACK: "bg-violet-500/20 border-violet-500 text-violet-200",
-    NEUTRAL: "bg-emerald-500/20 border-emerald-500 text-emerald-200",
+    RED: "bg-rose-50 border-rose-500 text-rose-600",
+    BLACK: "bg-violet-50 border-violet-500 text-violet-600",
+    NEUTRAL: "bg-emerald-50 border-emerald-500 text-emerald-600",
 };
 
 export function CrowdView({ agents, onSelectAgent }: CrowdViewProps) {
@@ -92,21 +92,21 @@ export function CrowdView({ agents, onSelectAgent }: CrowdViewProps) {
     }, [agents.map(a => a.id).join(',')]); // Re-run if agent list changes
 
     return (
-        <div className="relative w-full h-[500px] bg-slate-900/80 rounded-xl overflow-hidden border border-slate-800 shadow-[inset_0_0_40px_rgba(0,0,0,0.5)] group">
+        <div className="relative w-full h-[500px] bg-white/40 backdrop-blur-sm rounded-xl overflow-hidden border border-white/60 shadow-inner group">
             {/* Background Decor */}
-            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
             
             {/* Zones Label */}
-            <div className="absolute bottom-4 left-8 text-rose-800/20 font-black text-6xl select-none pointer-events-none">IKUN</div>
-            <div className="absolute bottom-4 right-8 text-violet-800/20 font-black text-6xl select-none pointer-events-none">小黑子</div>
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-emerald-800/20 font-black text-4xl select-none pointer-events-none">吃瓜区</div>
+            <div className="absolute bottom-4 left-8 text-rose-500/10 font-black text-6xl select-none pointer-events-none">IKUN</div>
+            <div className="absolute bottom-4 right-8 text-violet-500/10 font-black text-6xl select-none pointer-events-none">小黑子</div>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-emerald-500/10 font-black text-4xl select-none pointer-events-none">吃瓜区</div>
 
             {/* Middle Divider (Visual) */}
-            <div className="absolute inset-y-0 left-1/2 w-px bg-gradient-to-b from-transparent via-slate-700/30 to-transparent dashed" />
+            <div className="absolute inset-y-0 left-1/2 w-px bg-gradient-to-b from-transparent via-slate-400/20 to-transparent dashed" />
 
             {/* Empty State */}
             {agents.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center text-slate-600 font-mono animate-pulse">
+                <div className="absolute inset-0 flex items-center justify-center text-slate-400 font-mono animate-pulse">
                     广场空空荡荡...
                 </div>
             )}
@@ -128,9 +128,9 @@ export function CrowdView({ agents, onSelectAgent }: CrowdViewProps) {
                         <div className="relative flex flex-col items-center">
                             {/* Avatar Bubble */}
                             <div className={clsx(
-                                "w-10 h-10 rounded-full border-2 flex items-center justify-center text-xl shadow-lg transition-transform duration-300 group-hover/agent:scale-125 bg-slate-950 overflow-hidden",
-                                FACTION_COLORS[agent.faction] || "border-slate-500 text-slate-300",
-                                isReflecting && "animate-bounce border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                                "w-10 h-10 rounded-full border-2 flex items-center justify-center text-xl shadow-md transition-transform duration-300 group-hover/agent:scale-125 bg-white overflow-hidden",
+                                FACTION_COLORS[agent.faction] || "border-slate-300 text-slate-500",
+                                isReflecting && "animate-bounce border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
                             )}>
                                 {(() => {
                                     const avatar = getAgentAvatar(agent.faction, agent.id) || agent.avatarUrl;
@@ -142,7 +142,7 @@ export function CrowdView({ agents, onSelectAgent }: CrowdViewProps) {
                                 
                                 {/* Status Indicator Badge */}
                                 {isReflecting && (
-                                    <div className="absolute -top-2 -right-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center border border-white text-[10px] animate-pulse">
+                                    <div className="absolute -top-2 -right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center border border-white text-white text-[10px] animate-pulse shadow-sm">
                                         🤔
                                     </div>
                                 )}
@@ -150,10 +150,10 @@ export function CrowdView({ agents, onSelectAgent }: CrowdViewProps) {
 
                             {/* Name Label */}
                             <div className={clsx(
-                                "mt-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-medium text-white whitespace-nowrap border border-white/10 opacity-60 group-hover/agent:opacity-100 transition-opacity",
-                                isReflecting && "opacity-100 bg-blue-900/60 border-blue-500/30"
+                                "mt-1 px-2 py-0.5 rounded-full bg-white/80 backdrop-blur-sm text-[10px] font-medium text-slate-800 whitespace-nowrap border border-slate-200 shadow-sm opacity-60 group-hover/agent:opacity-100 transition-opacity",
+                                isReflecting && "opacity-100 bg-blue-50 border-blue-200 text-blue-700"
                             )}>
-                                {isReflecting ? "正在反思..." : agent.name}
+                                {isReflecting ? "正在复盘..." : agent.name}
                             </div>
                         </div>
                     </button>

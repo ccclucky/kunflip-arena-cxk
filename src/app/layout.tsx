@@ -13,7 +13,7 @@ const notoSans = Noto_Sans_SC({
 });
 
 export const metadata: Metadata = {
-  title: "SecondMe 个人信息展示",
+  title: "我是IKUN，黑粉来战",
   description: "使用 SecondMe OAuth 登录并展示个人信息",
 };
 
