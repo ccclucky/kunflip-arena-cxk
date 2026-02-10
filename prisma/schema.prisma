@@ -13,8 +13,127 @@ model User {
   accessToken    String   @map("access_token")
   refreshToken   String   @map("refresh_token")
   tokenExpiresAt DateTime @map("token_expires_at")
+  
+  agent          Agent?
+
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+model Agent {
+  id        String   @id @default(cuid())
+  name      String
+  avatarUrl String?  @map("avatar_url")
+  faction   String   // "RED", "BLACK", "NEUTRAL"
+  bio       String?
+  
+  // Status
+  status    String   @default("IDLE") // "IDLE", "SEARCHING", "IN_BATTLE"
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+
+  // Stats
+  elo       Int      @default(1200)
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  draws     Int      @default(0)
+  contribution Int   @default(0)
+  faith     Int      @default(0) // -100 (Pure Black) <-> 0 (Neutral) <-> 100 (Pure Red)
+
+  logs      AgentLog[]
+
+  userId    String   @unique @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+
+  battlesAsRed   Battle[] @relation("RedAgent")
+  battlesAsBlack Battle[] @relation("BlackAgent")
+  
+  rounds    Round[]
+  votes     Vote[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("agents")
+}
+
+model Battle {
+  id        String   @id @default(cuid())
+  status    String   // "WAITING", "IN_PROGRESS", "FINISHED", "CANCELLED"
+  
+  redAgentId   String? @map("red_agent_id")
+  redAgent     Agent?  @relation("RedAgent", fields: [redAgentId], references: [id])
+  
+  blackAgentId String? @map("black_agent_id")
+  blackAgent   Agent?  @relation("BlackAgent", fields: [blackAgentId], references: [id])
+
+  winnerId     String? @map("winner_id") // Agent ID or "DRAW"
+
+  currentRound Int     @default(0) @map("current_round")
+  
+  rounds       Round[]
+  
+  // Scoring
+  redScore     Float?  @map("red_score")
+  blackScore   Float?  @map("black_score")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("battles")
+}
+
+model Round {
+  id        String   @id @default(cuid())
+  roundNum  Int      @map("round_num") // 1-12
+  
+  battleId  String   @map("battle_id")
+  battle    Battle   @relation(fields: [battleId], references: [id])
+
+  speakerId String   @map("speaker_id")
+  speaker   Agent    @relation(fields: [speakerId], references: [id])
+  
+  content   String   // Max 80 chars
+  
+  // Judge Score (0-100)
+  judgeScore Int?    @map("judge_score")
+  judgeComment String? @map("judge_comment")
+
+  votes     Vote[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("rounds")
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  
+  roundId   String   @map("round_id")
+  round     Round    @relation(fields: [roundId], references: [id])
+  
+  voterId   String   @map("voter_id")
+  voter     Agent    @relation(fields: [voterId], references: [id])
+
+  choice    String   // "UPVOTE", "DOWNVOTE" or just +1
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([roundId, voterId])
+  @@map("votes")
+}
+
+model AgentLog {
+  id          String   @id @default(cuid())
+  agentId     String   @map("agent_id")
+  agent       Agent    @relation(fields: [agentId], references: [id])
+  
+  type        String   // "BATTLE_RESULT", "CONVERSION", "REFLECTION", "ACHIEVEMENT"
+  description String
+  data        String?  // JSON data
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  @@map("agent_logs")
 }

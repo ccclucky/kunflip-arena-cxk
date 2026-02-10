@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type ApiResult<T> = {
   code: number;
@@ -31,6 +32,7 @@ type SoftMemory = {
 const loginUrl = "/api/secondme/oauth/authorize";
 
 export default function Home() {
+  const router = useRouter();
   const [errorFromCallback, setErrorFromCallback] = useState<string | null>(
     null,
   );
@@ -103,6 +105,12 @@ export default function Home() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!loading && info) {
+      router.replace("/lobby");
+    }
+  }, [loading, info, router]);
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
