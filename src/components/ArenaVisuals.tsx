@@ -44,7 +44,8 @@ export function ArenaVisuals({ rounds }: ArenaVisualsProps) {
             id: latestRound.id,
             text: latestRound.content,
             top: Math.random() * 80 + 10, // 10% to 90%
-            color: isRed ? "text-rose-500" : "text-violet-500",
+            // Use CSS Variables via Tailwind arbitrary values
+            color: isRed ? "text-[var(--color-ikun-gold)]" : "text-[var(--color-anti-purple)]",
             duration: isHighImpact ? 15 : 10, // Slower if high impact so people can read
             size: isHighImpact ? 2 : 1.2 // Bigger if high impact
         };
@@ -71,10 +72,6 @@ export function ArenaVisuals({ rounds }: ArenaVisualsProps) {
                         top: `${item.top}%`,
                         fontSize: `${item.size}rem`,
                         animationDuration: `${item.duration}s`,
-                        // We need to define keyframes in globals.css or use inline style for transform
-                        // Since tailwind arbitrary values are tricky for keyframes without config, 
-                        // we'll rely on a standard 'animate-danmaku' class we must add to globals.css
-                        // OR we can use a transition if we set left: 100% -> -100%
                     }}
                 >
                     {item.text}

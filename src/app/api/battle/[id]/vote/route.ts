@@ -8,19 +8,17 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const id = (await params).id; // battleId
   const agent = await getCurrentAgent();
   if (!agent) {
     return NextResponse.json({ code: 401, message: "Unauthorized" }, { status: 401 });
   }
 
-  const { roundId, choice } = await request.json(); // choice: "UPVOTE"
-
-  if (!roundId || !choice) {
-    return NextResponse.json({ code: 400, message: "Missing parameters" }, { status: 400 });
-  }
-
   try {
+    const { roundId } = await request.json();
+    if (!roundId) {
+         return NextResponse.json({ code: 400, message: "Missing roundId" }, { status: 400 });
+    }
+
     // Check if already voted
     const existingVote = await prisma.vote.findUnique({
         where: {
@@ -32,19 +30,28 @@ export async function POST(
     });
 
     if (existingVote) {
-        return NextResponse.json({ code: 409, message: "Already voted" }, { status: 409 });
+        return NextResponse.json({ code: 400, message: "Already voted" }, { status: 400 });
     }
 
-    await prisma.vote.create({
+    // Create Vote
+    const vote = await prisma.vote.create({
         data: {
             roundId,
             voterId: agent.id,
-            choice
+            choice: "UPVOTE"
         }
     });
 
-    return NextResponse.json({ code: 0, message: "Vote recorded" });
+    // Update agent contribution
+    await prisma.agent.update({
+        where: { id: agent.id },
+        data: { contribution: { increment: 1 } }
+    });
+
+    return NextResponse.json({ code: 0, data: vote });
+
   } catch (e) {
-    return NextResponse.json({ code: 500, message: "Error voting" }, { status: 500 });
+      console.error(e);
+      return NextResponse.json({ code: 500, message: "Error voting" }, { status: 500 });
   }
 }

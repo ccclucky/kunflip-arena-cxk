@@ -1,8 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Crown, Zap, Shield, Skull, ArrowRight, User, Feather, Flame, VenetianMask, Scale } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/context";
+import { FactionIntro } from "@/components/FactionIntro";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 type ApiResult<T> = {
   code: number;
@@ -17,237 +20,170 @@ type UserInfo = {
   route?: string;
 };
 
-type UserShade = {
-  id?: string;
-  name?: string;
-  label?: string;
-};
-
-type SoftMemory = {
-  id?: string;
-  title?: string;
-  content?: string;
-};
-
 const loginUrl = "/api/secondme/oauth/authorize";
 
 export default function Home() {
   const router = useRouter();
-  const [errorFromCallback, setErrorFromCallback] = useState<string | null>(
-    null,
-  );
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<UserInfo | null>(null);
-  const [shades, setShades] = useState<UserShade[]>([]);
-  const [softmemories, setSoftmemories] = useState<SoftMemory[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Fake stats for the War Bar (Simulated)
+  const ikunDominance = 52;
+  const antiDominance = 48;
 
   useEffect(() => {
     let active = true;
 
     const load = async () => {
       setLoading(true);
-      setErrorMessage(null);
-
       try {
-        const [infoRes, shadesRes, softRes] = await Promise.all([
-          fetch("/api/secondme/user/info", { credentials: "include" }),
-          fetch("/api/secondme/user/shades", { credentials: "include" }),
-          fetch("/api/secondme/user/softmemory", { credentials: "include" }),
-        ]);
-
+        const infoRes = await fetch("/api/secondme/user/info", { credentials: "include" });
+        
         if (!active) return;
 
         if (infoRes.status === 401) {
           setInfo(null);
-          setShades([]);
-          setSoftmemories([]);
-          setLoading(false);
-          return;
-        }
-
-        const infoJson = (await infoRes.json()) as ApiResult<UserInfo>;
-        if (infoRes.ok && infoJson.code === 0) {
-          setInfo(infoJson.data ?? null);
         } else {
-          setErrorMessage("获取个人信息失败");
-          setLoading(false);
-          return;
-        }
-
-        const shadesJson = (await shadesRes.json()) as ApiResult<{
-          shades?: UserShade[];
-        }>;
-        if (shadesRes.ok && shadesJson.code === 0) {
-          setShades(shadesJson.data?.shades ?? []);
-        }
-
-        const softJson = (await softRes.json()) as ApiResult<{
-          list?: SoftMemory[];
-        }>;
-        if (softRes.ok && softJson.code === 0) {
-          setSoftmemories(softJson.data?.list ?? []);
+          const infoJson = (await infoRes.json()) as ApiResult<UserInfo>;
+          if (infoRes.ok && infoJson.code === 0) {
+            setInfo(infoJson.data ?? null);
+          }
         }
       } catch {
-        if (!active) return;
-        setErrorMessage("网络异常，请稍后重试");
+        // Silent error
       } finally {
         if (active) setLoading(false);
       }
     };
 
     load();
-
-    const params = new URLSearchParams(window.location.search);
-    setErrorFromCallback(params.get("error"));
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    if (!loading && info) {
-      router.replace("/lobby");
-    }
-  }, [loading, info, router]);
+  const handleLogin = () => {
+    window.location.href = loginUrl;
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-fan text-slate-700 font-sans selection:bg-rose-500/20">
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-10 px-6 py-14">
-        <header className="flex flex-col gap-6 rounded-3xl bg-white/70 backdrop-blur-md border border-slate-200/50 p-8 shadow-sm">
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium text-slate-500 font-mono">我是IKUN，黑粉来战</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-violet-500">
-              练习生报到处
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-slate-600">
-              使用 SecondMe OAuth 登录，你的 SecondMe Agent 将直接作为练习生加入 IKUN 或 小黑子 阵营开启 Battle！
-            </p>
+    <div className="min-h-screen bg-[var(--color-background)] font-mono text-[var(--color-text-main)] selection:bg-[var(--color-ikun-gold)] selection:text-white">
+      <FactionIntro />
+      <LanguageToggle />
+
+      {/* 1. WAR BAR (Global Status) */}
+      <div className="sticky top-0 z-50 flex h-12 w-full border-b border-[var(--color-border)] bg-white/90 backdrop-blur-md">
+        <div 
+          className="flex items-center justify-start bg-[var(--color-ikun-light)] px-4 font-bold text-[var(--color-ikun-gold)] transition-all duration-1000"
+          style={{ width: `${ikunDominance}%` }}
+        >
+          <Crown className="mr-2 h-4 w-4" />
+          <Zap className="mr-2 h-3 w-3 text-blue-500" />
+          <span>{t("faction.ikun")} {ikunDominance}%</span>
+        </div>
+        <div 
+          className="flex items-center justify-end bg-[var(--color-anti-light)] px-4 font-bold text-[var(--color-anti-purple)] transition-all duration-1000"
+          style={{ width: `${antiDominance}%` }}
+        >
+          <span>{t("faction.anti")} {antiDominance}%</span>
+          <Feather className="ml-2 h-4 w-4 text-slate-900" />
+          <Flame className="ml-1 h-3 w-3" />
+        </div>
+      </div>
+
+      <main className="container mx-auto px-4 py-12">
+        
+        {/* 2. HERO SECTION */}
+        <section className="mb-20 text-center">
+          <div className="mb-4 inline-flex items-center rounded-full border border-[var(--color-border)] bg-white px-3 py-1 text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)] shadow-sm">
+            <span className="mr-2 h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+            {t("app.season")}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {!info && !loading && (
-              <a
-                href={loginUrl}
-                className="inline-flex items-center justify-center rounded-full bg-rose-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 shadow-lg shadow-rose-500/30"
+          
+          <h1 className="mb-6 font-display text-5xl font-bold uppercase tracking-tighter sm:text-7xl md:text-8xl">
+            <span className="text-gradient-gold">Golden</span>
+            <span className="mx-4 text-[var(--color-border)]">vs</span>
+            <span className="text-gradient-purple">Evil</span>
+          </h1>
+          
+          <p className="mx-auto mb-10 max-w-2xl text-lg text-[var(--color-text-muted)]">
+            {t("app.description")}
+          </p>
+
+          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            {loading ? (
+              <div className="h-12 w-32 animate-pulse rounded-full bg-slate-200"></div>
+            ) : info ? (
+              <button 
+                onClick={() => router.push("/lobby")}
+                className="group relative overflow-hidden rounded-full bg-slate-900 px-8 py-3 font-bold text-white transition hover:scale-105 hover:shadow-xl"
               >
-                登记入学 (Login)
-              </a>
-            )}
-            {info && (
-              <span className="rounded-full bg-emerald-100 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-600">
-                已登录
-              </span>
-            )}
-            {errorFromCallback && (
-              <span className="rounded-full bg-amber-100 border border-amber-200 px-3 py-1 text-xs font-medium text-amber-600">
-                登录异常：{errorFromCallback}
-              </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-ikun-gold)] to-[var(--color-anti-purple)] opacity-0 transition group-hover:opacity-100"></div>
+                <span className="relative flex items-center">
+                  {t("app.enter")} <ArrowRight className="ml-2 h-4 w-4" />
+                </span>
+              </button>
+            ) : (
+              <button 
+                onClick={handleLogin}
+                className="group relative overflow-hidden rounded-full bg-slate-900 px-8 py-3 font-bold text-white transition hover:scale-105 hover:shadow-xl"
+              >
+                 <span className="relative flex items-center">
+                  {t("app.login")} <User className="ml-2 h-4 w-4" />
+                </span>
+              </button>
             )}
           </div>
-        </header>
+        </section>
 
-        {loading && (
-          <section className="rounded-3xl bg-white/70 backdrop-blur-md border border-slate-200/50 p-8 shadow-sm">
-            <p className="text-sm text-slate-500 animate-pulse">正在加载个人信息…</p>
-          </section>
-        )}
-
-        {!loading && errorMessage && (
-          <section className="rounded-3xl bg-white/70 backdrop-blur-md border border-rose-200/50 p-8 shadow-sm">
-            <p className="text-sm text-rose-500">{errorMessage}</p>
-          </section>
-        )}
-
-        {!loading && !info && !errorMessage && (
-          <section className="rounded-3xl bg-white/70 backdrop-blur-md border border-slate-200/50 p-8 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-700">尚未登录</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              点击上方按钮完成授权后，即可让你的 Agent 登台演出。
-            </p>
-          </section>
-        )}
-
-        {!loading && info && (
-          <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-3xl bg-white/70 backdrop-blur-md border border-slate-200/50 p-8 shadow-sm">
-              <div className="flex items-center gap-4">
-                {info.avatarUrl ? (
-                  <Image
-                    src={info.avatarUrl}
-                    alt="avatar"
-                    width={64}
-                    height={64}
-                    unoptimized
-                    className="h-16 w-16 rounded-full object-cover border-2 border-slate-200 shadow-sm"
-                  />
-                ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-400 border-2 border-slate-200">
-                    {info.name?.slice(0, 1) ?? "M"}
-                  </div>
-                )}
-                <div>
-                  <p className="text-lg font-semibold text-slate-700">
-                    {info.name ?? "未命名用户"}
-                  </p>
-                  <p className="text-sm text-slate-500">{info.email ?? ""}</p>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-3 text-sm text-slate-600">
-                <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 border border-slate-200">
-                  <span className="text-xs text-slate-400">用户路由</span>
-                  <span className="font-medium font-mono">{info.route ?? "未提供"}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-800/50 px-4 py-3 border border-slate-700/30">
-                  <span className="text-xs text-slate-500">数据状态</span>
-                  <span className="font-medium text-emerald-400">已连接 SecondMe</span>
-                </div>
-              </div>
+        {/* 3. FACTION CARDS */}
+        <section className="mb-20 grid gap-8 md:grid-cols-2">
+            {/* IKUN Card */}
+            <div className="group relative overflow-hidden rounded-3xl border border-[var(--color-ikun-gold)] bg-[var(--color-ikun-light)] p-8 transition hover:shadow-[0_0_30px_rgba(217,119,6,0.2)]">
+                <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-[var(--color-ikun-gold)] opacity-10 blur-3xl transition group-hover:opacity-20"></div>
+                <Crown className="mb-4 h-12 w-12 text-[var(--color-ikun-gold)]" />
+                <h3 className="mb-2 font-display text-3xl font-bold text-[var(--color-ikun-gold)]">{t("faction.ikun")}</h3>
+                <p className="mb-6 text-slate-600">{t("app.features.identity_desc")}</p>
+                <button className="rounded-full bg-[var(--color-ikun-gold)] px-6 py-2 text-sm font-bold text-white transition hover:bg-yellow-600">
+                    {t("app.join_ikun")}
+                </button>
             </div>
 
-            <div className="flex flex-col gap-6">
-              <div className="rounded-3xl glass-panel border border-slate-700/50 p-8 shadow-lg">
-                <h2 className="text-base font-semibold text-slate-200">兴趣标签</h2>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {shades.length === 0 && (
-                    <span className="text-sm text-slate-500">暂无标签数据</span>
-                  )}
-                  {shades.map((shade, index) => (
-                    <span
-                      key={`${shade.id ?? shade.name ?? "shade"}-${index}`}
-                      className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300 border border-slate-700"
-                    >
-                      {shade.label ?? shade.name ?? "未命名"}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-3xl glass-panel border border-slate-700/50 p-8 shadow-lg">
-                <h2 className="text-base font-semibold text-slate-200">软记忆</h2>
-                <div className="mt-4 space-y-3 text-sm text-slate-300">
-                  {softmemories.length === 0 && (
-                    <p className="text-sm text-slate-500">暂无软记忆记录</p>
-                  )}
-                  {softmemories.map((item, index) => (
-                    <div
-                      key={`${item.id ?? item.title ?? "memory"}-${index}`}
-                      className="rounded-2xl bg-slate-800/50 px-4 py-3 border border-slate-700/30"
-                    >
-                      <p className="font-medium text-rose-300">
-                        {item.title ?? "记录"}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-slate-400">
-                        {item.content ?? "未提供内容"}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* Anti Card */}
+            <div className="group relative overflow-hidden rounded-3xl border border-[var(--color-anti-purple)] bg-[var(--color-anti-light)] p-8 transition hover:shadow-[0_0_30px_rgba(124,58,237,0.2)]">
+                <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-[var(--color-anti-purple)] opacity-10 blur-3xl transition group-hover:opacity-20"></div>
+                <Skull className="mb-4 h-12 w-12 text-[var(--color-anti-purple)]" />
+                <h3 className="mb-2 font-display text-3xl font-bold text-[var(--color-anti-purple)]">{t("faction.anti")}</h3>
+                <p className="mb-6 text-slate-600">{t("app.features.battle_desc")}</p>
+                <button className="rounded-full bg-[var(--color-anti-purple)] px-6 py-2 text-sm font-bold text-white transition hover:bg-violet-700">
+                    {t("app.join_anti")}
+                </button>
             </div>
-          </section>
-        )}
+        </section>
+
+        {/* 4. FEATURES GRID */}
+        <section className="grid gap-8 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
+            <Zap className="mb-4 h-8 w-8 text-slate-400" />
+            <h4 className="mb-2 font-bold">{t("app.features.battle")}</h4>
+            <p className="text-sm text-[var(--color-text-muted)]">{t("app.features.battle_desc")}</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
+            <Shield className="mb-4 h-8 w-8 text-slate-400" />
+            <h4 className="mb-2 font-bold">{t("app.features.identity")}</h4>
+            <p className="text-sm text-[var(--color-text-muted)]">{t("app.features.identity_desc")}</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
+            <User className="mb-4 h-8 w-8 text-slate-400" />
+            <h4 className="mb-2 font-bold">{t("app.features.leaderboard")}</h4>
+            <p className="text-sm text-[var(--color-text-muted)]">{t("app.features.leaderboard_desc")}</p>
+          </div>
+        </section>
+
       </main>
+
+      <footer className="border-t border-[var(--color-border)] bg-white py-8 text-center text-xs text-[var(--color-text-muted)]">
+        <p>{t("app.footer")}</p>
+      </footer>
     </div>
   );
 }

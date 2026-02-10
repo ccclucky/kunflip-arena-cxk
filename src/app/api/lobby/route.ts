@@ -49,7 +49,30 @@ export async function GET() {
             take: 50
         });
 
-        return NextResponse.json({ code: 0, data: { battles, activeAgents } });
+        // 3. Global Stats (Elo Sum)
+        const redStats = await prisma.agent.aggregate({
+            where: { faction: "RED" },
+            _sum: { elo: true }
+        });
+        const blackStats = await prisma.agent.aggregate({
+            where: { faction: "BLACK" },
+            _sum: { elo: true }
+        });
+
+        const redElo = redStats._sum.elo || 0;
+        const blackElo = blackStats._sum.elo || 0;
+
+        return NextResponse.json({ 
+            code: 0, 
+            data: { 
+                battles, 
+                activeAgents,
+                stats: {
+                    redElo,
+                    blackElo
+                }
+            } 
+        });
     } catch (e) {
         console.error("Lobby API error", e);
         return NextResponse.json({ code: 500, message: "Error fetching lobby data" }, { status: 500 });

@@ -2,9 +2,13 @@
 
 import { useEffect, useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { Zap, Skull, Swords, Send, Clock, AlertTriangle, ThumbsUp, Scale, Bot } from "lucide-react";
+import { Zap, Skull, Swords, Send, Clock, AlertTriangle, ThumbsUp, Scale, Bot, Crown, ArrowLeft, Feather, Flame } from "lucide-react";
 import clsx from "clsx";
 import { ArenaVisuals } from "@/components/ArenaVisuals";
+import { useTranslation } from "@/lib/i18n/context";
+import { BattleProgress } from "@/components/BattleProgress";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { FactionFrame } from "@/components/FactionFrame";
 
 type Agent = {
   id: string;
@@ -67,6 +71,7 @@ function getAgentAvatar(faction: string, id: string) {
 export default function ArenaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { t } = useTranslation();
   
   const [battle, setBattle] = useState<Battle | null>(null);
   const [me, setMe] = useState<Agent | null>(null);
@@ -74,6 +79,13 @@ export default function ArenaPage({ params }: { params: Promise<{ id: string }> 
   const [input, setInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [votedRounds, setVotedRounds] = useState<Set<string>>(new Set());
+  const [entryAnim, setEntryAnim] = useState(false); // Entry animation state
+
+  useEffect(() => {
+      // Trigger entry animation on mount
+      setTimeout(() => setEntryAnim(true), 100);
+  }, []);
+
   
   // Polling for updates
   useEffect(() => {
@@ -85,10 +97,14 @@ export default function ArenaPage({ params }: { params: Promise<{ id: string }> 
     const fetchBattle = async () => {
         try {
             const res = await fetch(`/api/battle/${id}`);
-            if (res.ok) {
-                const json = await res.json();
-                setBattle(json.data);
+            const json = await res.json();
+            
+            if (json.code === 0) {
+                 setBattle(json.data);
+            } else {
+                 console.error("Battle fetch failed:", json.message);
             }
+
         } catch (e) {
             console.error(e);
         } finally {
@@ -101,288 +117,187 @@ export default function ArenaPage({ params }: { params: Promise<{ id: string }> 
     return () => clearInterval(interval);
   }, [id]);
 
-  // Auto-Move Trigger
-  useEffect(() => {
-      if (!battle || !me) return;
-      if (battle.status !== "IN_PROGRESS") return;
-
-      const isRedTurn = battle.currentRound % 2 !== 0;
-      const isMyTurn = (isRedTurn && me.id === battle.redAgent?.id) || (!isRedTurn && me.id === battle.blackAgent?.id);
-
-      if (isMyTurn && !submitting) {
-          // Trigger Auto Move
-          // We add a small delay to simulate "thinking" and avoid rapid fire
-          const timer = setTimeout(() => {
-              handleAutoMove();
-          }, 2000);
-          return () => clearTimeout(timer);
+  const handleVote = async (roundId: string) => {
+      if (votedRounds.has(roundId)) return;
+      
+      setVotedRounds(prev => new Set(prev).add(roundId));
+      
+      try {
+          // Note: API implementation for voting is pending, but client logic is ready
+          await fetch(`/api/battle/${id}/vote`, {
+              method: "POST",
+              body: JSON.stringify({ roundId })
+          });
+      } catch (e) {
+          console.error("Vote failed", e);
       }
-  }, [battle, me, submitting]);
-
-  const handleJoin = async () => {
-    try {
-        const res = await fetch(`/api/battle/${id}/join`, { method: "POST" });
-        if (res.ok) {
-            // refresh
-        } else {
-            alert("挤不进舞台前排");
-        }
-    } catch (e) {
-        alert("加入失败");
-    }
   };
 
-  const handleAutoMove = async () => {
-      if (submitting) return;
+  const handleSendMessage = async () => {
+      if (!input.trim()) return;
       setSubmitting(true);
+      
       try {
-          const res = await fetch(`/api/battle/${id}/auto-move`, { method: "POST" });
-          if (!res.ok) {
-              console.error("自动唱跳失败");
+          const res = await fetch(`/api/battle/${id}/round`, {
+              method: "POST",
+              body: JSON.stringify({ content: input })
+          });
+          const json = await res.json();
+          
+          if (json.code === 0) {
+              setInput("");
+          } else {
+              alert(json.message || "Failed to send message");
           }
       } catch (e) {
-          console.error("自动唱跳出错", e);
+          console.error("Send failed", e);
       } finally {
           setSubmitting(false);
       }
   };
 
-  const handleVote = async (roundId: string) => {
-    if (votedRounds.has(roundId)) return;
-    try {
-        const res = await fetch(`/api/battle/${id}/vote`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ roundId, choice: "UPVOTE" })
-        });
-        if (res.ok) {
-            setVotedRounds(prev => new Set(prev).add(roundId));
-        } else {
-            const json = await res.json();
-            if (json.code === 409) setVotedRounds(prev => new Set(prev).add(roundId)); // Already voted
-        }
-    } catch (e) {
-        console.error(e);
-    }
-  };
+  if (loading) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-ikun-gold)] border-t-transparent"></div></div>;
+  if (!battle) return <div className="flex h-screen items-center justify-center text-[var(--color-text-muted)]">Battle not found or loading error...</div>;
 
-  if (loading) return <div className="min-h-screen bg-gradient-fan flex items-center justify-center text-rose-600 font-mono animate-pulse">正在连接练习室...</div>;
-  if (!battle) return <div className="min-h-screen bg-gradient-fan flex items-center justify-center text-slate-600">舞台数据丢失，可能是被黑粉攻击了</div>;
-
-  const isRed = me?.faction === "RED";
-  const currentTurnIsRed = battle.currentRound % 2 !== 0;
-  const isWaiting = battle.status === "WAITING";
-  const isFinished = battle.status === "FINISHED";
-  
-  // Is my agent currently thinking/acting?
-  const isMyTurn = (currentTurnIsRed && me?.id === battle.redAgent?.id) || (!currentTurnIsRed && me?.id === battle.blackAgent?.id);
-
-  const renderRound = (round: Round, side: "left" | "right") => (
-    <div key={round.id} className={clsx(
-        "relative p-4 mb-4 rounded-2xl border shadow-sm",
-        side === "left" 
-            ? "bg-white border-rose-100 rounded-tl-sm ml-4" 
-            : "bg-white border-violet-100 rounded-tr-sm mr-4 text-right"
-    )}>
-        {/* Triangle Pointer */}
-        <div className={clsx(
-            "absolute top-0 w-0 h-0 border-t-[10px]",
-            side === "left" 
-                ? "-left-2 border-t-white border-l-[10px] border-l-transparent drop-shadow-sm" 
-                : "-right-2 border-t-white border-r-[10px] border-r-transparent drop-shadow-sm"
-        )}></div>
-        
-        {/* Round Badge */}
-        <span className={clsx(
-            "absolute -top-3 text-[10px] font-bold px-2 py-0.5 rounded border shadow-sm",
-            side === "left"
-                ? "-left-2 bg-rose-50 text-rose-600 border-rose-200"
-                : "-right-2 bg-violet-50 text-violet-600 border-violet-200"
-        )}>R{round.roundNum}</span>
-
-        {/* Content */}
-        <p className={clsx("text-sm leading-relaxed mb-2 font-medium", side === "left" ? "text-slate-700" : "text-slate-700")}>
-            {round.content}
-        </p>
-
-        {/* Footer: Score & Vote */}
-        <div className={clsx("flex items-center gap-3 text-xs", side === "left" ? "justify-start" : "justify-end")}>
-             {/* Judge Score */}
-             {round.judgeScore !== undefined && (
-                 <div className="flex items-center gap-1 text-amber-600 font-mono font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-                     <Scale className="w-3 h-3" /> {round.judgeScore}
-                 </div>
-             )}
-             
-             {/* Vote Button */}
-             <button 
-                onClick={() => handleVote(round.id)}
-                disabled={votedRounds.has(round.id)}
-                className={clsx(
-                    "flex items-center gap-1 transition-colors",
-                    votedRounds.has(round.id) ? "text-rose-500" : "text-slate-400 hover:text-slate-700"
-                )}
-             >
-                 <ThumbsUp className={clsx("w-3 h-3", votedRounds.has(round.id) && "fill-current")} />
-                 {votedRounds.has(round.id) ? "已应援" : "应援"}
-             </button>
-        </div>
-        
-        {/* Judge Comment */}
-        {round.judgeComment && (
-            <div className={clsx("mt-2 text-[10px] italic", side === "left" ? "text-rose-500/80" : "text-violet-500/80")}>
-                {round.judgeComment}
-            </div>
-        )}
-    </div>
-  );
+  const isParticipant = me?.id === battle.redAgent?.id || me?.id === battle.blackAgent?.id;
 
   return (
-    <div className="min-h-screen bg-gradient-fan text-slate-700 font-sans selection:bg-rose-500/20 flex flex-col relative overflow-hidden">
-        {/* Visual Layer */}
-        <ArenaVisuals rounds={battle.rounds} />
+    <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] font-mono text-[var(--color-text-main)]">
+        <LanguageToggle />
+        
+        {/* Background Gradients */}
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+           <div className="absolute -left-1/4 top-0 h-full w-1/2 bg-gradient-to-r from-[var(--color-ikun-light)] to-transparent blur-3xl"></div>
+           <div className="absolute -right-1/4 top-0 h-full w-1/2 bg-gradient-to-l from-[var(--color-anti-light)] to-transparent blur-3xl"></div>
+        </div>
 
-        {/* Arena Header */}
-        <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-slate-200/50 px-4 py-3 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-4">
-                <button onClick={() => router.push("/lobby")} className="text-slate-500 hover:text-slate-900 transition-colors text-sm font-bold uppercase tracking-wider">
-                    ← 退出
-                </button>
-                <div className="h-6 w-[1px] bg-slate-300/50"></div>
-                <div className="flex items-center gap-2">
-                    <span className={clsx("w-2 h-2 rounded-full animate-pulse", battle.status === "IN_PROGRESS" ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]")}></span>
-                    <span className="text-sm font-bold tracking-widest text-slate-700">{battle.status}</span>
-                </div>
-            </div>
-            <div className="text-sm font-mono font-bold text-amber-600 neon-text-amber">
-                BATTLE {battle.currentRound}/12
+        {/* Header */}
+        <header className="fixed top-0 z-50 flex w-full items-center justify-between border-b border-[var(--color-border)] bg-white/80 px-4 py-3 backdrop-blur-md">
+            <button onClick={() => router.push("/lobby")} className="flex items-center gap-2 text-sm font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]">
+                <ArrowLeft className="h-4 w-4" /> {t("arena.exit")}
+            </button>
+            <div className="flex items-center gap-2 rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-600 animate-pulse">
+                <div className="h-2 w-2 rounded-full bg-red-600"></div> {t("arena.live")}
             </div>
         </header>
 
-        {/* Main Arena */}
-        <main className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-4 gap-4 h-[calc(100vh-64px)] overflow-hidden">
+        {/* Main Content */}
+        <main className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col pt-20">
             
-            {/* Left: Red Faction */}
-            <div className={clsx(
-                "flex-1 flex flex-col rounded-2xl border-2 transition-all duration-500 overflow-hidden relative",
-                currentTurnIsRed && battle.status === "IN_PROGRESS" ? "border-rose-500 bg-rose-50/80 shadow-[0_0_30px_rgba(244,63,94,0.15)]" : "border-slate-200 bg-white/40 opacity-60"
-            )}>
-                <div className="p-6 flex flex-col items-center gap-4 border-b border-rose-200/50 bg-gradient-to-b from-rose-100/50 to-transparent">
-                    <div className="w-20 h-20 rounded-full border-4 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.3)] bg-rose-100 flex items-center justify-center overflow-hidden relative">
-                         {(() => {
-                             const agent = battle.redAgent;
-                             const avatar = agent ? (getAgentAvatar("RED", agent.id) || agent.avatarUrl) : null;
-                             if (avatar) {
-                                return <img src={avatar} className="w-full h-full object-cover" />;
-                             }
-                             return <Zap className="w-10 h-10 text-rose-500" />;
-                         })()}
-                         {currentTurnIsRed && battle.status === "IN_PROGRESS" && (
-                             <div className="absolute inset-0 bg-rose-500/20 animate-ping rounded-full" />
-                         )}
-                    </div>
-                    <div className="text-center">
-                        <h2 className="text-xl font-black text-rose-600 uppercase tracking-widest">{battle.redAgent?.name || "虚位以待..."}</h2>
-                        <p className="text-xs font-bold text-rose-500">IKUN 阵营</p>
-                    </div>
-                    {isWaiting && !battle.redAgent && me?.faction === "RED" && (
-                         <button onClick={handleJoin} className="mt-2 px-6 py-2 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-full text-sm shadow-[0_0_15px_rgba(244,63,94,0.4)] transition-all animate-bounce">
-                            加入 Battle
-                         </button>
-                    )}
-                    {currentTurnIsRed && battle.status === "IN_PROGRESS" && (
-                        <div className="mt-2 flex items-center gap-2 text-rose-500 text-xs font-mono animate-pulse">
-                            <Bot className="w-4 h-4" /> 正在憋大招...
+            {/* Scoreboard / Agents */}
+            <div className="mb-8 px-4">
+                <div className="mb-6 flex items-end justify-between gap-4">
+                    {/* RED AGENT */}
+                    <div className={clsx("flex flex-col items-center transition-all duration-1000", entryAnim ? "translate-x-0 opacity-100" : "-translate-x-20 opacity-0")}>
+                        <FactionFrame faction="RED" isActive={battle.currentRound % 2 !== 0} className="mb-2">
+                            {battle.redAgent ? (
+                                <img src={getAgentAvatar("RED", battle.redAgent.id) || ""} className="h-full w-full object-cover" />
+                            ) : <div className="h-full w-full bg-slate-200"></div>}
+                            <div className="absolute bottom-0 w-full bg-[var(--color-ikun-gold)] text-center text-[10px] font-bold text-white">IKUN</div>
+                        </FactionFrame>
+                        <div className="text-center">
+                            <div className="font-display text-lg font-bold text-[var(--color-ikun-gold)]">{battle.redAgent?.name || "???"}</div>
+                            <div className="text-xs font-bold text-slate-400">{t("arena.score", { n: battle.redScore || 0 })}</div>
                         </div>
-                    )}
-                </div>
-                
-                {/* Chat Stream (Red) */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-rose-200 scrollbar-track-transparent">
-                     {battle.rounds.filter(r => r.speaker.faction === "RED").map(round => renderRound(round, "left"))}
-                </div>
-            </div>
-
-            {/* Middle: Timeline / VS */}
-            <div className="hidden md:flex w-16 flex-col items-center justify-center gap-4">
-                 <div className="h-full w-[2px] bg-slate-200 relative">
-                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-2 border border-slate-200 rounded-full z-10 shadow-sm">
-                        <Swords className="w-6 h-6 text-slate-400" />
-                     </div>
-                 </div>
-            </div>
-
-            {/* Right: Black Faction */}
-            <div className={clsx(
-                "flex-1 flex flex-col rounded-2xl border-2 transition-all duration-500 overflow-hidden relative",
-                !currentTurnIsRed && battle.status === "IN_PROGRESS" ? "border-violet-500 bg-violet-50/80 shadow-[0_0_30px_rgba(139,92,246,0.15)]" : "border-slate-200 bg-white/40 opacity-60"
-            )}>
-                 <div className="p-6 flex flex-col items-center gap-4 border-b border-violet-200/50 bg-gradient-to-b from-violet-100/50 to-transparent">
-                    <div className="w-20 h-20 rounded-full border-4 border-violet-500 shadow-[0_0_20px_rgba(139,92,246,0.3)] bg-violet-100 flex items-center justify-center overflow-hidden relative">
-                         {(() => {
-                             const agent = battle.blackAgent;
-                             const avatar = agent ? (getAgentAvatar("BLACK", agent.id) || agent.avatarUrl) : null;
-                             if (avatar) {
-                                return <img src={avatar} className="w-full h-full object-cover" />;
-                             }
-                             return <Skull className="w-10 h-10 text-violet-500" />;
-                         })()}
-                         {!currentTurnIsRed && battle.status === "IN_PROGRESS" && (
-                             <div className="absolute inset-0 bg-violet-500/20 animate-ping rounded-full" />
-                         )}
                     </div>
-                    <div className="text-center">
-                        <h2 className="text-xl font-black text-violet-600 uppercase tracking-widest">{battle.blackAgent?.name || "虚位以待..."}</h2>
-                        <p className="text-xs font-bold text-violet-500">小黑子 阵营</p>
+
+                    {/* VS / Round */}
+                    <div className={clsx("mb-8 flex flex-col items-center transition-all duration-1000 delay-500", entryAnim ? "scale-100 opacity-100" : "scale-0 opacity-0")}>
+                         <div className="font-display text-4xl font-black italic tracking-tighter text-slate-300">{t("arena.vs")}</div>
+                         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">{t("arena.round", { n: battle.currentRound })}</div>
                     </div>
-                    {isWaiting && !battle.blackAgent && me?.faction === "BLACK" && (
-                         <button onClick={handleJoin} className="mt-2 px-6 py-2 bg-violet-500 hover:bg-violet-600 text-white font-bold rounded-full text-sm shadow-[0_0_15px_rgba(139,92,246,0.4)] transition-all animate-bounce">
-                            加入 Battle
-                         </button>
-                    )}
-                    {!currentTurnIsRed && battle.status === "IN_PROGRESS" && (
-                        <div className="mt-2 flex items-center gap-2 text-violet-500 text-xs font-mono animate-pulse">
-                            <Bot className="w-4 h-4" /> 正在憋大招...
+
+                    {/* BLACK AGENT */}
+                    <div className={clsx("flex flex-col items-center transition-all duration-1000", entryAnim ? "translate-x-0 opacity-100" : "translate-x-20 opacity-0")}>
+                        <FactionFrame faction="BLACK" isActive={battle.currentRound % 2 === 0} className="mb-2">
+                            {battle.blackAgent ? (
+                                <img src={getAgentAvatar("BLACK", battle.blackAgent.id) || ""} className="h-full w-full object-cover" />
+                            ) : <div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-300 text-2xl font-bold">?</div>}
+                             <div className="absolute bottom-0 w-full bg-[var(--color-anti-purple)] text-center text-[10px] font-bold text-white">ANTI</div>
+                        </FactionFrame>
+                        <div className="text-center">
+                            <div className="font-display text-lg font-bold text-[var(--color-anti-purple)]">{battle.blackAgent?.name || t("lobby.new_challenger")}</div>
+                            <div className="text-xs font-bold text-slate-400">{t("arena.score", { n: battle.blackScore || 0 })}</div>
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* Chat Stream (Black) */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-violet-200 scrollbar-track-transparent">
-                     {battle.rounds.filter(r => r.speaker.faction === "BLACK").map(round => renderRound(round, "right"))}
+                {/* DYNAMIC BATTLE PROGRESS BAR */}
+                <div className={clsx("transition-all duration-1000 delay-700", entryAnim ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0")}>
+                    <BattleProgress redScore={battle.redScore || 0} blackScore={battle.blackScore || 0} />
                 </div>
             </div>
 
+            {/* Chat / Dialogue Area */}
+            <div className="flex-1 overflow-y-auto px-4 pb-32">
+                <div className="space-y-6">
+                    {battle.rounds.length === 0 ? (
+                        <div className="py-20 text-center text-[var(--color-text-muted)]">
+                            <Clock className="mx-auto mb-4 h-12 w-12 opacity-20" />
+                            <p>{t("arena.waiting_battle")}</p>
+                        </div>
+                    ) : (
+                        battle.rounds.map((round) => {
+                            const isRed = round.speaker.faction === "RED";
+                            return (
+                                <div key={round.id} className={clsx("flex gap-4", isRed ? "flex-row" : "flex-row-reverse")}>
+                                    <div className="mt-2 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-[var(--color-border)]">
+                                        <img src={getAgentAvatar(round.speaker.faction, round.speaker.id) || ""} className="h-full w-full object-cover" />
+                                    </div>
+                                    <div className={clsx("relative max-w-[80%]", isRed ? "items-start" : "items-end")}>
+                                        <div className={clsx("rounded-2xl px-5 py-3 shadow-sm relative overflow-hidden", 
+                                            isRed 
+                                              ? "bg-[var(--color-ikun-light)] text-[var(--color-text-main)] rounded-tl-none border border-[var(--color-ikun-gold)]/20" 
+                                              : "bg-[var(--color-anti-light)] text-[var(--color-text-main)] rounded-tr-none border border-[var(--color-anti-purple)]/20"
+                                        )}>
+                                            {/* Chat Bubble Decoration */}
+                                            {isRed ? (
+                                                <Crown className="absolute -right-2 -bottom-2 h-10 w-10 text-[var(--color-ikun-gold)] opacity-10 rotate-12" />
+                                            ) : (
+                                                <Feather className="absolute -left-2 -bottom-2 h-10 w-10 text-[var(--color-anti-purple)] opacity-10 -rotate-12" />
+                                            )}
+                                            
+                                            <p className="font-medium relative z-10">{round.content}</p>
+                                        </div>
+                                        <div className={clsx("mt-1 flex items-center gap-2", isRed ? "justify-start" : "justify-end")}>
+                                            <button 
+                                                onClick={() => handleVote(round.id)}
+                                                className={clsx("flex items-center gap-1 text-xs font-bold transition hover:scale-110", votedRounds.has(round.id) ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]")}
+                                            >
+                                                <ThumbsUp className="h-3 w-3" /> {t("arena.like")}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+
+            {/* Input Area (Danmaku) */}
+            <div className="fixed bottom-0 left-0 w-full border-t border-[var(--color-border)] bg-white p-4 backdrop-blur-md">
+                <div className="mx-auto flex max-w-4xl gap-2">
+                    <input 
+                        type="text" 
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder={t("arena.input_placeholder")}
+                        className="flex-1 rounded-full border border-[var(--color-border)] bg-slate-50 px-6 py-3 font-medium outline-none transition focus:border-[var(--color-primary)] focus:bg-white"
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    />
+                    <button 
+                        onClick={handleSendMessage}
+                        disabled={submitting || !input.trim()}
+                        className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white transition hover:bg-[var(--color-primary)] disabled:opacity-50"
+                    >
+                        <Send className="h-5 w-5" />
+                    </button>
+                </div>
+            </div>
+            
+            {/* Visual Effects Layer */}
         </main>
-
-        {/* Footer: Status or Result */}
-        {isFinished && (
-            <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-slate-200 p-8 z-50 flex flex-col items-center justify-center gap-4 shadow-lg">
-                 <div className="text-center">
-                    <h2 className="text-4xl font-black text-amber-500 mb-2 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">演出结束</h2>
-                    <p className="text-xl text-slate-700 font-bold">
-                        C位出道: <span className={battle.winnerId === battle.redAgent?.id ? "text-rose-600" : "text-violet-600"}>
-                            {battle.winnerId === battle.redAgent?.id ? "IKUN 阵营" : "小黑子 阵营"}
-                        </span>
-                    </p>
-                    <div className="mt-4 flex gap-8 text-sm font-mono">
-                        <div className="text-rose-600">IKUN 热度: {battle.redScore}</div>
-                        <div className="text-violet-600">小黑子 热度: {battle.blackScore}</div>
-                    </div>
-                 </div>
-                 <button onClick={() => router.push("/lobby")} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold transition-all border border-slate-300">
-                    返回大厅
-                 </button>
-            </div>
-        )}
-        
-        {isMyTurn && !isFinished && (
-             <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-slate-200 p-4 z-50 text-center shadow-lg">
-                 <p className="text-amber-600 font-mono text-sm animate-pulse">
-                     练习生正在思考Rap词... 请勿打扰
-                 </p>
-             </div>
-        )}
     </div>
   );
 }

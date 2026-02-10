@@ -1,88 +1,71 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc; /* Slate 50 */
-  --foreground: #0f172a; /* Slate 900 */
+  /* Brand Colors (Royal Clash Light Mode) */
+  --color-primary: #0F172A; /* Slate 900 */
+  --color-secondary: #334155; /* Slate 700 */
+  
+  /* Faction Colors */
+  --color-ikun-gold: #D97706; /* Amber 600 - Readable Gold */
+  --color-ikun-bg: #F59E0B; /* Amber 500 - Button Bg */
+  --color-ikun-light: #FFFBEB; /* Amber 50 - Card Bg */
+  
+  --color-anti-purple: #7C3AED; /* Violet 600 - Readable Purple */
+  --color-anti-bg: #8B5CF6; /* Violet 500 - Button Bg */
+  --color-anti-light: #F5F3FF; /* Violet 50 - Card Bg */
+  
+  /* Backgrounds */
+  --color-background: #F8FAFC; /* Slate 50 */
+  --color-surface: #FFFFFF; /* White */
+  --color-border: #E2E8F0; /* Slate 200 */
+  
+  /* Text Colors */
+  --color-text-main: #020617; /* Slate 950 */
+  --color-text-muted: #64748B; /* Slate 500 */
 }
 
 @theme {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-ikun-gold: var(--color-ikun-gold);
+  --color-ikun-bg: var(--color-ikun-bg);
+  --color-ikun-light: var(--color-ikun-light);
+  --color-anti-purple: var(--color-anti-purple);
+  --color-anti-bg: var(--color-anti-bg);
+  --color-anti-light: var(--color-anti-light);
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-border: var(--color-border);
+  --color-text-main: var(--color-text-main);
+  --color-text-muted: var(--color-text-muted);
+  
+  --font-display: var(--font-syncopate);
+  --font-body: var(--font-space-mono);
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  color: var(--color-text-main);
+  background: var(--color-background);
+  font-family: var(--font-body), monospace;
   overflow-x: hidden;
 }
 
-/* Glassmorphism Utilities (Light Mode Optimized) */
+/* Utilities */
 .glass-panel {
-  @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl;
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.glass-card {
-  @apply bg-white/60 backdrop-blur-lg border border-white/60 shadow-lg hover:bg-white/80 transition-all duration-300;
+.text-gradient-gold {
+  background: linear-gradient(to right, #D97706, #F59E0B);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.glass-button {
-  @apply bg-white/80 backdrop-blur-md border border-white/50 shadow-md hover:shadow-lg active:scale-95 transition-all;
-}
-
-/* Neon / Vibrant Text Effects */
-.neon-text-rose {
-  text-shadow: 0 0 10px rgba(244, 63, 94, 0.3), 0 0 2px rgba(244, 63, 94, 0.5);
-}
-
-.neon-text-violet {
-  text-shadow: 0 0 10px rgba(139, 92, 246, 0.3), 0 0 2px rgba(139, 92, 246, 0.5);
-}
-
-.neon-text-amber {
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3), 0 0 2px rgba(245, 158, 11, 0.5);
-}
-
-/* Background Gradients */
-.bg-gradient-fan {
-  @apply bg-gradient-to-br from-indigo-50 via-white to-rose-50;
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-}
-
-.neon-border-rose {
-  box-shadow: 0 0 10px rgba(244, 63, 94, 0.3), inset 0 0 10px rgba(244, 63, 94, 0.1);
-}
-
-.neon-border-violet {
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.3), inset 0 0 10px rgba(139, 92, 246, 0.1);
-}
-
-/* Custom Animations */
-@keyframes danmaku {
-  from { transform: translateX(100vw); }
-  to { transform: translateX(-100%); }
-}
-
-.animate-danmaku {
-  animation-name: danmaku;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-  position: fixed; /* Fixed relative to viewport usually better for Danmaku */
-  left: 0;
-  white-space: nowrap;
-  will-change: transform;
-}
-
-@keyframes float {
-  0% { transform: translate(-50%, -50%) translateY(0px); }
-  100% { transform: translate(-50%, -50%) translateY(-10px); }
+.text-gradient-purple {
+  background: linear-gradient(to right, #7C3AED, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

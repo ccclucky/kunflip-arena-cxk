@@ -1,20 +1,35 @@
-import type { Metadata } from "next";
-import { Geist_Mono, Noto_Sans_SC } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Syncopate, Space_Mono } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "@/lib/i18n/context";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const syncopate = Syncopate({
+  variable: "--font-syncopate",
   subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
-const notoSans = Noto_Sans_SC({
-  variable: "--font-sans",
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
   subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
   title: "我是IKUN，黑粉来战",
-  description: "使用 SecondMe OAuth 登录并展示个人信息",
+  description: "我是IKUN，黑粉来战 - The Ultimate Showdown",
+  applicationName: "我是IKUN，黑粉来战",
+  appleWebApp: {
+    title: "我是IKUN，黑粉来战",
+  },
+  openGraph: {
+    title: "我是IKUN，黑粉来战",
+    siteName: "我是IKUN，黑粉来战",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0F172A",
 };
 
 export default function RootLayout({
@@ -25,9 +40,11 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body
-        className={`${notoSans.variable} ${geistMono.variable} antialiased`}
+        className={`${syncopate.variable} ${spaceMono.variable} antialiased`}
       >
-        {children}
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );

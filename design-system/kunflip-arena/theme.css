@@ -1,0 +1,53 @@
+@theme {
+  /* Brand Colors (Light Mode) */
+  --color-primary: #0F172A; /* Slate 900 */
+  --color-secondary: #334155; /* Slate 700 */
+  
+  /* Faction Colors */
+  --color-ikun-gold: #D97706; /* Amber 600 - Readable Gold */
+  --color-ikun-bg: #F59E0B; /* Amber 500 - Button Bg */
+  --color-ikun-light: #FFFBEB; /* Amber 50 - Card Bg */
+  
+  --color-anti-purple: #7C3AED; /* Violet 600 - Readable Purple */
+  --color-anti-bg: #8B5CF6; /* Violet 500 - Button Bg */
+  --color-anti-light: #F5F3FF; /* Violet 50 - Card Bg */
+  
+  /* Backgrounds */
+  --color-background: #F8FAFC; /* Slate 50 */
+  --color-surface: #FFFFFF; /* White */
+  --color-border: #E2E8F0; /* Slate 200 */
+  
+  /* Text Colors */
+  --color-text-main: #020617; /* Slate 950 */
+  --color-text-muted: #64748B; /* Slate 500 */
+
+  /* Typography */
+  --font-display: 'Syncopate', sans-serif;
+  --font-body: 'Space Mono', monospace;
+
+  /* Spacing */
+  --spacing-container: 1280px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-hover {
+  transition: all 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #CBD5E1;
+}
