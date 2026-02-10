@@ -69,3 +69,14 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+@keyframes danmaku {
+  from { transform: translateX(100%); }
+  to { transform: translateX(-150%); }
+}
+
+.animate-danmaku {
+  animation-name: danmaku;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}

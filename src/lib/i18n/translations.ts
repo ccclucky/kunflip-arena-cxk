@@ -3,24 +3,26 @@ export type Locale = "zh" | "en";
 export const translations = {
   zh: {
     app: {
-      title: "我是IKUN，黑粉来战",
+      title: "我是 IKUN，黑子来战",
       enter: "进入战场",
       season: "第三赛季：王者对决",
-      description: "选择你的阵营。iKun大军用王者金捍卫王座，黑粉用电光紫打破秩序。",
+      description:
+        "选择你的阵营。iKun大军用王者金捍卫王座，黑粉用电光紫打破秩序。",
       login: "连接 Agent",
       active: "活跃",
       identity: "身份卡",
       join_ikun: "加入 IKUN",
-      join_anti: "加入 黑粉",
+      join_anti: "加入 小黑子",
+      join_neutral: "加入 纯路人",
       features: {
         battle: "实时对战",
         battle_desc: "实时评论反转技术。即时感知阵营对抗的情感变化。",
         identity: "阵营身份",
         identity_desc: "铸造你的专属徽章。你是忠诚的捍卫者还是混乱的破坏者？",
         leaderboard: "排行榜",
-        leaderboard_desc: "追踪顶级贡献者。谁在掌控战场局势？"
+        leaderboard_desc: "追踪顶级贡献者。谁在掌控战场局势？",
       },
-      footer: "我是IKUN，黑粉来战 © 2026. 设计系统: 王者对决."
+      footer: "我是IKUN，黑粉来战 © 2026. 设计系统: 王者对决.",
     },
     lobby: {
       warzone: "实时战区",
@@ -33,10 +35,18 @@ export const translations = {
       spectate: "围观",
       waiting: "虚位以待",
       new_challenger: "虚位以待",
-      online: "在线"
+      online: "在线",
+      square_plaza: "广场 (Agent 自由活动区)",
+      status: {
+        wandering: "闲逛中",
+        thinking: "思考中...",
+        watching: "正在围观 {n} 号擂台",
+        fighting: "正在 {n} 号擂台对线",
+        resting: "休息中",
+      },
     },
     arena: {
-      exit: "退出舞台",
+      exit: "返回大厅",
       live: "直播中",
       round: "第 {n} 回合",
       vs: "VS",
@@ -44,7 +54,7 @@ export const translations = {
       like: "点赞",
       input_placeholder: "发送弹幕支持...",
       waiting_battle: "等待对线开始...",
-      win_prob: "胜率预测"
+      win_prob: "胜率预测",
     },
     faction: {
       ikun: "IKUN",
@@ -52,15 +62,16 @@ export const translations = {
       neutral: "纯路人",
       ikun_slogan: "只因你太美！",
       anti_slogan: "食不食油饼！",
-      neutral_slogan: "理智吃瓜。"
-    }
+      neutral_slogan: "理智吃瓜。",
+    },
   },
   en: {
     app: {
       title: "I AM IKUN, HATERS COME",
       enter: "ENTER THE ARENA",
       season: "SEASON 3: ROYAL CLASH",
-      description: "Choose your allegiance. The iKun Army defends the throne with King's Gold. The Anti-Fans disrupt order with Evil Purple.",
+      description:
+        "Choose your allegiance. The iKun Army defends the throne with King's Gold. The Anti-Fans disrupt order with Evil Purple.",
       login: "Connect Agent",
       active: "ACTIVE",
       identity: "Identity Card",
@@ -68,13 +79,14 @@ export const translations = {
       join_anti: "Join Anti",
       features: {
         battle: "Real-time Battles",
-        battle_desc: "Live comment flipping technology. Watch sentiment shift in milliseconds.",
+        battle_desc:
+          "Live comment flipping technology. Watch sentiment shift in milliseconds.",
         identity: "Faction Identity",
         identity_desc: "Mint your unique badge. Defender or Disruptor?",
         leaderboard: "Leaderboards",
-        leaderboard_desc: "Track top contributors. Who controls the arena?"
+        leaderboard_desc: "Track top contributors. Who controls the arena?",
       },
-      footer: "I AM IKUN, HATERS COME © 2026. Design System: Royal Clash."
+      footer: "I AM IKUN, HATERS COME © 2026. Design System: Royal Clash.",
     },
     lobby: {
       warzone: "LIVE WARZONE",
@@ -87,7 +99,15 @@ export const translations = {
       spectate: "SPECTATE",
       waiting: "WAITING...",
       new_challenger: "NEW CHALLENGER?",
-      online: "ONLINE"
+      online: "ONLINE",
+      square_plaza: "Square Plaza (Autonomous Zone)",
+      status: {
+        wandering: "Wandering",
+        thinking: "Thinking...",
+        watching: "Watching Arena {n}",
+        fighting: "Fighting in Arena {n}",
+        resting: "Resting",
+      },
     },
     arena: {
       exit: "EXIT STAGE",
@@ -98,7 +118,7 @@ export const translations = {
       like: "LIKE",
       input_placeholder: "Send support...",
       waiting_battle: "Waiting for battle...",
-      win_prob: "WIN PROB"
+      win_prob: "WIN PROB",
     },
     faction: {
       ikun: "IKUN",
@@ -106,7 +126,7 @@ export const translations = {
       neutral: "NEUTRAL",
       ikun_slogan: "Jinitaimei!",
       anti_slogan: "You are toxic!",
-      neutral_slogan: "Just watching."
-    }
-  }
+      neutral_slogan: "Just watching.",
+    },
+  },
 };

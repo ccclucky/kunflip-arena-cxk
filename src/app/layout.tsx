@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Syncopate, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
+import { GameProvider } from "@/lib/GameContext";
 
 const syncopate = Syncopate({
   variable: "--font-syncopate",
@@ -16,15 +17,15 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "我是IKUN，黑粉来战",
-  description: "我是IKUN，黑粉来战 - The Ultimate Showdown",
-  applicationName: "我是IKUN，黑粉来战",
+  title: "我是 IKUN，黑子来战",
+  description: "我是 IKUN，黑子来战 - The Ultimate Showdown",
+  applicationName: "我是 IKUN，黑子来战",
   appleWebApp: {
-    title: "我是IKUN，黑粉来战",
+    title: "我是 IKUN，黑子来战",
   },
   openGraph: {
-    title: "我是IKUN，黑粉来战",
-    siteName: "我是IKUN，黑粉来战",
+    title: "我是 IKUN，黑子来战",
+    siteName: "我是 IKUN，黑子来战",
   },
 };
 
@@ -43,7 +44,7 @@ export default function RootLayout({
         className={`${syncopate.variable} ${spaceMono.variable} antialiased`}
       >
         <LanguageProvider>
-          {children}
+          <GameProvider>{children}</GameProvider>
         </LanguageProvider>
       </body>
     </html>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import clsx from "clsx";
 import { useTranslation } from "@/lib/i18n/context";
 
@@ -11,44 +11,54 @@ interface BattleProgressProps {
 
 export function BattleProgress({ redScore, blackScore }: BattleProgressProps) {
   const { t } = useTranslation();
-  const total = redScore + blackScore || 1;
-  const redPercent = Math.min(100, Math.max(0, (redScore / total) * 100));
+  const total = redScore + blackScore;
+  // If no score, default to 50/50 to avoid 0 vs 100 skew
+  const redPercent =
+    total === 0 ? 50 : Math.min(100, Math.max(0, (redScore / total) * 100));
   const blackPercent = 100 - redPercent;
-  
-  const [prevRedPercent, setPrevRedPercent] = useState(redPercent);
+
+  const prevRedPercentRef = useRef(redPercent);
   const [shaking, setShaking] = useState(false);
 
   useEffect(() => {
     // Check if change is >= 1%
-    if (Math.abs(redPercent - prevRedPercent) >= 1) {
+    if (Math.abs(redPercent - prevRedPercentRef.current) >= 1) {
       // Trigger Shake
-      setShaking(true);
-      
+      setTimeout(() => setShaking(true), 0);
+
       // Vibration
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate(50);
       }
 
       // SFX (Synthesized Beep)
-      if (typeof window !== "undefined" && window.AudioContext) {
-          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(150, ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.3);
-          gain.gain.setValueAtTime(0.1, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.3);
+      type AudioContextConstructor = typeof window.AudioContext;
+      interface WindowWithWebkit extends Window {
+        webkitAudioContext?: AudioContextConstructor;
+      }
+      const AudioContextClass: AudioContextConstructor | undefined =
+        window.AudioContext ||
+        (window as unknown as WindowWithWebkit).webkitAudioContext;
+      if (AudioContextClass) {
+        const ctx = new AudioContextClass();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
       }
 
-      setTimeout(() => setShaking(false), 500);
-      setPrevRedPercent(redPercent);
+      const timer = setTimeout(() => setShaking(false), 500);
+      prevRedPercentRef.current = redPercent;
+      return () => clearTimeout(timer);
     }
-  }, [redPercent, prevRedPercent]);
+  }, [redPercent]);
 
   return (
     <div className={clsx("relative w-full", shaking && "animate-shake")}>
@@ -65,7 +75,7 @@ export function BattleProgress({ redScore, blackScore }: BattleProgressProps) {
       {/* The Bar */}
       <div className="relative h-6 w-full overflow-hidden rounded-full bg-slate-800 shadow-inner">
         {/* Red Bar */}
-        <div 
+        <div
           className="absolute left-0 top-0 h-full bg-gradient-to-r from-yellow-600 to-[var(--color-ikun-gold)] transition-all duration-500 ease-out"
           style={{ width: `${redPercent}%` }}
         >
@@ -75,27 +85,31 @@ export function BattleProgress({ redScore, blackScore }: BattleProgressProps) {
         </div>
 
         {/* Black Bar (Background is sufficient, but we can make it explicit for particles) */}
-        <div 
+        <div
           className="absolute right-0 top-0 h-full bg-gradient-to-l from-violet-900 to-[var(--color-anti-purple)] transition-all duration-500 ease-out"
           style={{ width: `${blackPercent}%` }}
         >
-             <div className="absolute inset-0 animate-pulse bg-black/10"></div>
-             <div className="absolute left-0 top-0 h-full w-1 bg-white/50 shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
+          <div className="absolute inset-0 animate-pulse bg-black/10"></div>
+          <div className="absolute left-0 top-0 h-full w-1 bg-white/50 shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
         </div>
-        
+
         {/* Clash Point */}
-        <div 
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,1)] flex items-center justify-center border-4 border-slate-900 transition-all duration-500"
-            style={{ left: `${redPercent}%` }}
+        <div
+          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,1)] flex items-center justify-center border-4 border-slate-900 transition-all duration-500"
+          style={{ left: `${redPercent}%` }}
         >
-            <div className="h-2 w-2 rounded-full bg-red-500 animate-ping"></div>
+          <div className="h-2 w-2 rounded-full bg-red-500 animate-ping"></div>
         </div>
       </div>
-      
+
       {/* Prediction / Status */}
       <div className="mt-1 flex justify-between text-[10px] font-bold uppercase text-[var(--color-text-muted)]">
-          <span>{t("arena.win_prob")}: {redPercent > 50 ? "High" : "Low"}</span>
-          <span>{t("arena.win_prob")}: {blackPercent > 50 ? "High" : "Low"}</span>
+        <span>
+          {t("arena.win_prob")}: {redPercent > 50 ? "High" : "Low"}
+        </span>
+        <span>
+          {t("arena.win_prob")}: {blackPercent > 50 ? "High" : "Low"}
+        </span>
       </div>
     </div>
   );

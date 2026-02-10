@@ -7,23 +7,26 @@ interface FactionFrameProps {
   children: React.ReactNode;
   isActive?: boolean;
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 }
 
 export function FactionFrame({ faction, children, isActive = true, className, size = "md" }: FactionFrameProps) {
   const sizeClasses = {
+    xs: "h-8 w-8 border-2",
     sm: "h-10 w-10 border-2",
     md: "h-20 w-20 border-4",
     lg: "h-32 w-32 border-4"
   };
 
   const iconSizes = {
+    xs: "h-3 w-3",
     sm: "h-4 w-4",
     md: "h-8 w-8",
     lg: "h-12 w-12"
   };
 
   const secondaryIconSizes = {
+    xs: "h-2 w-2",
     sm: "h-3 w-3",
     md: "h-6 w-6",
     lg: "h-10 w-10"
