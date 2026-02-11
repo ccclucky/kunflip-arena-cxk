@@ -73,7 +73,7 @@ export async function GET(req: Request) {
         secondMeUser.avatar ||
         secondMeUser.avatarUrl ||
         secondMeUser.picture ||
-        "";
+        "/images.jpg";
       const bio =
         secondMeUser.bio ||
         secondMeUser.introduction ||

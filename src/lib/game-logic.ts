@@ -50,7 +50,7 @@ const BLACK_AVATARS = [
 ];
 
 export function getAgentAvatar(faction: string, id: string) {
-  if (faction === "NEUTRAL") return null;
+  if (faction === "NEUTRAL") return "/images.jpg";
 
   let hash = 0;
   for (let i = 0; i < id.length; i++) {

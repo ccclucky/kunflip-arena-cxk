@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Zap, Skull, Shield } from "lucide-react";
 import clsx from "clsx";
 
-export default function AgentSelectionPage() {
+function AgentSelectionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedFaction, setSelectedFaction] = useState<"RED" | "BLACK" | "NEUTRAL" | null>(null);
@@ -154,5 +154,13 @@ export default function AgentSelectionPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AgentSelectionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-slate-500">Loading...</div>}>
+      <AgentSelectionContent />
+    </Suspense>
   );
 }
