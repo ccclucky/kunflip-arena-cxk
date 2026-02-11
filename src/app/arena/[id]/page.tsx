@@ -112,6 +112,14 @@ export default function ArenaPage({
     setTimeout(() => setEntryAnim(true), 100);
   }, []);
 
+  useEffect(() => {
+    if (!battle || battle.status !== "FINISHED") return;
+    const timer = setTimeout(() => {
+      router.push("/lobby");
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [battle, router]);
+
   // Polling for updates
   useEffect(() => {
     // Fetch current user
@@ -207,6 +215,23 @@ export default function ArenaPage({
     battle.status === "WAITING" || battle.currentRound % 2 !== 0;
   const isBlackActive =
     battle.status === "WAITING" || battle.currentRound % 2 === 0;
+  const nextIsRedTurn = battle.currentRound % 2 !== 0;
+  const nextSpeaker =
+    battle.status === "IN_PROGRESS"
+      ? nextIsRedTurn
+        ? battle.redAgent
+        : battle.blackAgent
+      : undefined;
+  const showMoveLoading =
+    battle.status === "IN_PROGRESS" && battle.rounds.length > 0 && !!nextSpeaker;
+  const winnerName =
+    battle.winnerId === "DRAW"
+      ? "DRAW"
+      : battle.winnerId === battle.redAgent?.id
+        ? battle.redAgent?.name
+        : battle.winnerId === battle.blackAgent?.id
+          ? battle.blackAgent?.name
+          : null;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[var(--color-background)] font-mono text-[var(--color-text-main)]">
@@ -226,14 +251,46 @@ export default function ArenaPage({
         >
           <ArrowLeft className="h-4 w-4" /> {t("arena.exit")} (Agent Auto-Play)
         </button>
-        <div className="flex items-center gap-2 rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-600 animate-pulse">
-          <div className="h-2 w-2 rounded-full bg-red-600"></div>{" "}
-          {t("arena.live")}
-        </div>
+        {battle.status === "FINISHED" ? (
+          <div className="flex items-center gap-2 rounded bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
+            <Crown className="h-3 w-3" />
+            FINISHED
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-600 animate-pulse">
+            <div className="h-2 w-2 rounded-full bg-red-600"></div>{" "}
+            {t("arena.live")}
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
       <main className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col pt-24">
+        {battle.status === "FINISHED" && (
+          <div className="mx-4 mb-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+            {winnerName === "DRAW"
+              ? "Battle ended in a draw."
+              : `Winner: ${winnerName || "Unknown"}.`}
+            {" "}Returning to lobby in 6 seconds...
+          </div>
+        )}
+        {showMoveLoading && (
+          <div className="mx-4 mb-3 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
+              <span>
+                Round {battle.currentRound}/12: {nextSpeaker?.name || "Agent"} is
+                preparing the next move
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]"></span>
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]"></span>
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]"></span>
+            </div>
+          </div>
+        )}
+
         {/* Scoreboard / Agents */}
         <div className="mb-4 px-8 md:px-24 lg:px-32">
           <div className="mb-4 flex items-end justify-between gap-4">
@@ -497,6 +554,38 @@ export default function ArenaPage({
                   </div>
                 );
               })}
+
+              {showMoveLoading && (
+                <div
+                  className={clsx(
+                    "flex w-full animate-fade-in-up",
+                    nextIsRedTurn ? "justify-start" : "justify-end",
+                  )}
+                >
+                  <div
+                    className={clsx(
+                      "flex max-w-[80%] flex-col gap-1",
+                      nextIsRedTurn ? "items-start" : "items-end",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 overflow-hidden rounded-full border border-[var(--color-border)] bg-slate-100 flex items-center justify-center">
+                        <Clock className="h-3 w-3 animate-spin text-slate-500" />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {nextSpeaker?.name || "Agent"} is thinking
+                      </span>
+                    </div>
+                    <div className="rounded-2xl bg-slate-100 px-4 py-2 shadow-sm">
+                      <div className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]"></span>
+                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]"></span>
+                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {battle.rounds.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center text-center text-slate-400">
