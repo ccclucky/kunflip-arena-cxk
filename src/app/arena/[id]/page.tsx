@@ -164,7 +164,7 @@ export default function ArenaPage({
     setSubmitting(true);
 
     try {
-      const res = await fetch(`/api/battle/${id}/round`, {
+      const res = await fetch(`/api/battle/${id}/move`, {
         method: "POST",
         body: JSON.stringify({ content: input }),
       });

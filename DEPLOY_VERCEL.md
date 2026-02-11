@@ -12,20 +12,15 @@
 
 ## 🛠️ 第一步：准备代码
 
-### 1. 修改 Prisma Schema
-打开 `prisma/schema.prisma`，将 `provider` 从 `"sqlite"` 改为 `"postgresql"`：
+### 1. 多环境支持 (已配置)
 
-```prisma
-// prisma/schema.prisma
+项目已内置多环境支持：
+- **开发环境**：使用 `prisma/schema.sqlite.prisma` (SQLite)
+- **生产环境**：使用 `prisma/schema.postgresql.prisma` (PostgreSQL)
 
-datasource db {
-  provider = "postgresql" // 👈 修改这里 (原为 sqlite)
-  url      = env("DATABASE_URL")
-}
-```
+系统会在 `npm run dev` 或部署时的 `postinstall` 阶段自动根据 `NODE_ENV` 切换 `prisma/schema.prisma` 的内容。你不需要手动修改 schema 文件。
 
 ### 2. 更新依赖
-由于本地环境可能没有 Postgres，你需要安装相关依赖（通常 Prisma Client 会自动处理，但建议重新生成）：
 
 ```bash
 # 生成新的 Prisma Client

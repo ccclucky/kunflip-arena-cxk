@@ -5,6 +5,7 @@ import { callChat, callAct } from "@/lib/secondme-client";
 import { cookies } from "next/headers";
 
 const prisma = new PrismaClient();
+const clampScore = (score: number) => Math.max(0, Math.min(100, Math.floor(score)));
 
 export async function POST(
   request: Request,
@@ -270,7 +271,7 @@ export async function POST(
             // Add strict JSON instruction to system prompt
             const actionControl = `${systemPrompt}\n\nOUTPUT FORMAT:\nStrictly output a JSON object with a single field "reply" containing your response text. Example: {"reply": "Your argument is invalid!"}`;
 
-            const result = await callAct(token, fullMessage, actionControl);
+            const result = await callAct(token, fullMessage, actionControl, { timeoutMs: 10000 });
             if (result && result.reply) {
                 content = result.reply;
             } else {
@@ -305,7 +306,8 @@ export async function POST(
                 token,
                 `Player: ${agent.name}\nFaction: ${agent.faction}\nStatement: "${content}"`,
                 `You are a strict battle arena judge. Evaluate statement based on Wit, Logic, Impact.
-                Output JSON: {"score": number (0-100), "comment": string (max 10 words)}.`
+                Output JSON: {"score": number (0-100), "comment": string (max 10 words)}.`,
+                { timeoutMs: 6000 }
             );
 
             if (actResult && typeof actResult.score === 'number') {
@@ -332,10 +334,8 @@ export async function POST(
             }
         }
         
-        // Cap score
-        if (judgeScore > 100 && skillType !== "SHOWTIME") judgeScore = 100;
-        if (judgeScore < 0) judgeScore = 0;
     }
+    judgeScore = clampScore(judgeScore);
 
     // 3. Save with Transaction
     try {
@@ -388,16 +388,26 @@ export async function POST(
                   await tx.agent.update({ where: { id: winnerId }, data: { wins: { increment: 1 }, elo: { increment: 24 } } });
                   const loserId = winnerId === battle.redAgentId ? battle.blackAgentId : battle.redAgentId;
                   if (loserId) await tx.agent.update({ where: { id: loserId }, data: { losses: { increment: 1 }, elo: { decrement: 24 } } });
+              } else if (winnerId === "DRAW") {
+                  if (battle.redAgentId) {
+                      await tx.agent.update({ where: { id: battle.redAgentId }, data: { draws: { increment: 1 } } });
+                  }
+                  if (battle.blackAgentId) {
+                      await tx.agent.update({ where: { id: battle.blackAgentId }, data: { draws: { increment: 1 } } });
+                  }
               }
             } else {
               await tx.battle.update({ where: { id }, data: { currentRound: nextRound } });
             }
         });
-    } catch (e: any) {
-          if (e.message === "ROUND_MISMATCH") {
+    } catch (e: unknown) {
+          const prismaCode = typeof e === "object" && e !== null && "code" in e
+            ? (e as { code?: string }).code
+            : undefined;
+          if (e instanceof Error && e.message === "ROUND_MISMATCH") {
               return NextResponse.json({ code: 409, message: "Round already played" });
           }
-          if (e.code === 'P2002') {
+          if (prismaCode === 'P2002') {
               return NextResponse.json({ code: 409, message: "Round already exists" });
           }
           throw e;

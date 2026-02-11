@@ -5,6 +5,7 @@ import { callChat, callAct } from "@/lib/secondme-client";
 import { cookies } from "next/headers";
 
 const prisma = new PrismaClient();
+const clampScore = (score: number) => Math.max(0, Math.min(100, Math.floor(score)));
 
 export async function POST(
   request: Request,
@@ -151,7 +152,7 @@ export async function POST(
             Example: {"reply": "Your reply here..."}
             `;
             
-            const result = await callAct(token, fullMessage, actionControl);
+            const result = await callAct(token, fullMessage, actionControl, { timeoutMs: 10000 });
             if (result && result.reply) {
                 content = result.reply;
             }
@@ -220,13 +221,13 @@ export async function POST(
     
     // Skill Trigger (20%)
     let skillType = undefined;
-    let skillEffect = undefined;
-    let judgeScore = Math.floor(Math.random() * 20) + 10; // 10-30 base score
+    let judgeScore = Math.floor(Math.random() * 41) + 40; // 40-80 base score
     
     if (Math.random() < 0.2) {
         skillType = "GLITCH";
         judgeScore += 20;
     }
+    judgeScore = clampScore(judgeScore);
 
     // Save Round with Transaction
     try {
@@ -251,7 +252,7 @@ export async function POST(
             });
 
             // Advance Turn
-            let nextRound = battle.currentRound + 1;
+            const nextRound = battle.currentRound + 1;
             let status = "IN_PROGRESS";
             let winnerId = null;
 
@@ -279,18 +280,28 @@ export async function POST(
                     await tx.agent.update({ where: { id: winnerId }, data: { wins: { increment: 1 }, elo: { increment: 24 } } });
                     const loserId = winnerId === battle.redAgentId ? battle.blackAgentId : battle.redAgentId;
                     if (loserId) await tx.agent.update({ where: { id: loserId }, data: { losses: { increment: 1 }, elo: { decrement: 24 } } });
+                } else if (winnerId === "DRAW") {
+                    if (battle.redAgentId) {
+                        await tx.agent.update({ where: { id: battle.redAgentId }, data: { draws: { increment: 1 } } });
+                    }
+                    if (battle.blackAgentId) {
+                        await tx.agent.update({ where: { id: battle.blackAgentId }, data: { draws: { increment: 1 } } });
+                    }
                 }
             } else {
                 await tx.battle.update({ where: { id }, data: { currentRound: nextRound } });
             }
         });
-    } catch (e: any) {
-         if (e.message === "ROUND_MISMATCH") {
+    } catch (e: unknown) {
+         const prismaCode = typeof e === "object" && e !== null && "code" in e
+           ? (e as { code?: string }).code
+           : undefined;
+         if (e instanceof Error && e.message === "ROUND_MISMATCH") {
              console.log("Round mismatch detected, skipping.");
              return NextResponse.json({ code: 409, message: "Round already played" });
          }
          // Handle Unique Constraint Violation (P2002)
-         if (e.code === 'P2002') {
+         if (prismaCode === 'P2002') {
              console.log("Round already exists (Unique Constraint), skipping.");
              return NextResponse.json({ code: 409, message: "Round already exists" });
          }

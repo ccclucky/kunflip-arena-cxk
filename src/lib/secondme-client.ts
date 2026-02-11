@@ -1,8 +1,23 @@
 import { createParser } from "eventsource-parser";
 
 const BASE_URL = process.env.SECONDME_API_BASE_URL ?? "https://app.mindos.com/gate/lab";
+const DEFAULT_ACT_TIMEOUT_MS = 12000;
+const DEFAULT_CHAT_TIMEOUT_MS = 12000;
 
-export async function callAct(token: string, message: string, actionControl: string) {
+type StreamCallOptions = {
+  timeoutMs?: number;
+};
+
+export async function callAct(
+  token: string,
+  message: string,
+  actionControl: string,
+  options?: StreamCallOptions
+) {
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_ACT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const res = await fetch(`${BASE_URL}/api/secondme/act/stream`, {
       method: "POST",
@@ -10,6 +25,7 @@ export async function callAct(token: string, message: string, actionControl: str
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         message,
         actionControl,
@@ -58,12 +74,27 @@ export async function callAct(token: string, message: string, actionControl: str
     }
 
   } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      console.warn(`[callAct] Timeout after ${timeoutMs}ms`);
+      return null;
+    }
     console.error("Call Act Error", e);
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-export async function callChat(token: string, messages: {role: string, content: string}[], systemPrompt?: string) {
+export async function callChat(
+  token: string,
+  messages: {role: string, content: string}[],
+  systemPrompt?: string,
+  options?: StreamCallOptions
+) {
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     // Note: The SecondMe API documentation in the skill might refer to /chat/stream or similar.
     // Let's assume a standard chat completion endpoint structure for SecondMe or use a simplified one if available.
@@ -91,6 +122,7 @@ export async function callChat(token: string, messages: {role: string, content: 
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
       },
+      signal: controller.signal,
       body: JSON.stringify(body),
     });
 
@@ -133,7 +165,13 @@ export async function callChat(token: string, messages: {role: string, content: 
     return fullText;
 
   } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      console.warn(`[callChat] Timeout after ${timeoutMs}ms`);
+      return null;
+    }
     console.error("Call Chat Error", e);
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }

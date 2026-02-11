@@ -472,6 +472,26 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     const battleId = myBattle.id;
     const myFaction = agent.faction; // "RED" or "BLACK" (assuming agent.faction is correct)
+    const postWithTimeout = async (url: string, body: unknown, timeoutMs = 15000) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
+      try {
+        return await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } catch (e) {
+        // Timeout abort is expected in auto-play loop; don't surface as console error.
+        if (e instanceof DOMException && e.name === "AbortError") {
+          return null;
+        }
+        throw e;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
 
     // Poller for this specific battle
     const battlePoller = setInterval(async () => {
@@ -501,11 +521,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             processingRef.current.add(battleId);
             const locale = localStorage.getItem("app-locale") || "zh";
             try {
-                await fetch(`/api/battle/${battleId}/auto-move`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ lang: locale }),
-                });
+                await postWithTimeout(`/api/battle/${battleId}/auto-move`, { lang: locale }, 15000);
             } finally {
                 processingRef.current.delete(battleId);
             }
@@ -519,11 +535,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
              if (opponent?.user?.secondmeUserId?.startsWith("bot_")) {
                  processingRef.current.add(battleId);
                  const locale = localStorage.getItem("app-locale") || "zh";
-                 fetch(`/api/battle/${battleId}/bot-move`, { 
-                     method: "POST",
-                     headers: { "Content-Type": "application/json" },
-                     body: JSON.stringify({ lang: locale }) 
-                 })
+                 postWithTimeout(`/api/battle/${battleId}/bot-move`, { lang: locale }, 15000)
                  .catch(() => {})
                  .finally(() => {
                      // Add a small delay before unlocking to allow backend state to settle

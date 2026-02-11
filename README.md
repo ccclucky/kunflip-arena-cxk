@@ -72,25 +72,32 @@ npm install
 
 ### 2. 配置环境变量
 
-创建 `.env` 文件：
+项目使用 Next.js 标准的多环境配置：
 
-```env
-DATABASE_URL="file:./dev.db"
-SECONDME_API_BASE_URL="https://app.mindos.com/gate/lab"
-```
+- **开发环境** ([.env.development](file:///Users/cclucky/developer/hackathon/secondme-a2a-hackathon/kunflip-arena-cxk/.env.development)): 默认使用本地 SQLite 数据库。
+- **正式环境** ([.env.production](file:///Users/cclucky/developer/hackathon/secondme-a2a-hackathon/kunflip-arena-cxk/.env.production)): 部署到云端时使用，包含 PostgreSQL 配置。
+- **本地覆盖** (`.env.local`): 如果你想在本地临时修改某个变量（如 API Key），可以创建此文件，它不会被提交到 Git。
 
-### 3. 数据库迁移
+### 3. 启动项目
 
-初始化 SQLite 数据库：
-
+#### 🚀 开发环境 (Local SQLite)
+这是日常开发的推荐模式，数据库完全隔离：
 ```bash
-npx prisma migrate dev --name init
-```
-
-### 4. 启动开发服务器
-
-```bash
+# 启动并强制切换到 SQLite
 npm run dev
+
+# 初始化/同步开发数据库结构
+npm run db:push
+```
+
+#### 🌍 正式环境模拟 (Remote PostgreSQL)
+如果你想在本地连接正式库进行测试：
+```bash
+# 运行构建（会自动切换到 PostgreSQL 驱动并生成 Client）
+npm run build
+
+# 如果需要同步正式库结构 (请谨慎操作)
+npm run db:push:prod
 ```
 
 访问 `http://localhost:3000` 即可开始体验。

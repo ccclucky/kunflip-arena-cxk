@@ -5,6 +5,7 @@ import { callAct } from "@/lib/secondme-client";
 import { cookies } from "next/headers";
 
 const prisma = new PrismaClient();
+const clampScore = (score: number) => Math.max(0, Math.min(100, Math.floor(score)));
 
 export async function POST(
   request: Request,
@@ -62,7 +63,8 @@ export async function POST(
             `You are a strict battle arena judge for a debate game. 
             Evaluate the statement based on: 1. Humor/Wit 2. Logic/Impact 3. Creativity.
             Output JSON: {"score": number (0-100), "comment": string (short punchy verdict max 10 words)}.
-            Be harsh but fair.`
+            Be harsh but fair.`,
+            { timeoutMs: 6000 }
         );
 
         if (actResult && typeof actResult.score === 'number') {
@@ -70,6 +72,7 @@ export async function POST(
             judgeComment = actResult.comment || "No comment.";
         }
     }
+    judgeScore = clampScore(judgeScore);
 
     // Save round with Transaction
     try {
@@ -128,6 +131,19 @@ export async function POST(
                             data: { losses: { increment: 1 }, elo: { decrement: 24 } }
                         });
                     }
+                } else if (winnerId === "DRAW") {
+                    if (battle.redAgentId) {
+                        await tx.agent.update({
+                            where: { id: battle.redAgentId },
+                            data: { draws: { increment: 1 } }
+                        });
+                    }
+                    if (battle.blackAgentId) {
+                        await tx.agent.update({
+                            where: { id: battle.blackAgentId },
+                            data: { draws: { increment: 1 } }
+                        });
+                    }
                 }
             } else {
                 await tx.battle.update({
@@ -136,11 +152,14 @@ export async function POST(
                 });
             }
         });
-    } catch (e: any) {
-        if (e.message === "ROUND_MISMATCH") {
+    } catch (e: unknown) {
+        const prismaCode = typeof e === "object" && e !== null && "code" in e
+          ? (e as { code?: string }).code
+          : undefined;
+        if (e instanceof Error && e.message === "ROUND_MISMATCH") {
              return NextResponse.json({ code: 409, message: "Round already played" });
         }
-        if (e.code === 'P2002') {
+        if (prismaCode === 'P2002') {
              return NextResponse.json({ code: 409, message: "Round already exists" });
         }
         throw e;
