@@ -1,14 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Zap, Skull, Shield } from "lucide-react";
 import clsx from "clsx";
 
 export default function AgentSelectionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedFaction, setSelectedFaction] = useState<"RED" | "BLACK" | "NEUTRAL" | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const faction = searchParams.get("faction");
+    if (faction && ["RED", "BLACK", "NEUTRAL"].includes(faction)) {
+      setSelectedFaction(faction as "RED" | "BLACK" | "NEUTRAL");
+    }
+  }, [searchParams]);
 
   const handleSubmit = async () => {
     if (!selectedFaction) return;

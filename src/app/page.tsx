@@ -128,6 +128,12 @@ export default function Home() {
   // Visual width logic:
   // If ratio is < 15%, force it to 15% visually, and reduce the other side.
   // If both are weirdly small (unlikely as sum is 100), handle gracefully.
+  // Helper to ensure minimal visibility for text
+  // Even if 0%, we want to show the text, so we'll clamp the width for visual purposes
+  // while displaying the real percentage in text.
+  // Visual width logic:
+  // If ratio is < 15%, force it to 15% visually, and reduce the other side.
+  // If both are weirdly small (unlikely as sum is 100), handle gracefully.
   let visualIkun = ikunDominance;
   let visualAnti = antiDominance;
 
@@ -138,6 +144,14 @@ export default function Home() {
     visualAnti = 15;
     visualIkun = 85;
   }
+
+  const handleJoin = (faction: string) => {
+    if (info) {
+      router.push(`/agent?faction=${faction}`);
+    } else {
+      window.location.href = loginUrl;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] font-mono text-[var(--color-text-main)] selection:bg-[var(--color-ikun-gold)] selection:text-white">
@@ -224,7 +238,10 @@ export default function Home() {
             <p className="mb-6 text-slate-600">
               {t("app.features.identity_desc")}
             </p>
-            <button className="rounded-full bg-[var(--color-ikun-gold)] px-6 py-2 text-sm font-bold text-white transition hover:bg-yellow-600">
+            <button
+              onClick={() => handleJoin("RED")}
+              className="rounded-full bg-[var(--color-ikun-gold)] px-6 py-2 text-sm font-bold text-white transition hover:bg-yellow-600"
+            >
               {t("app.join_ikun")}
             </button>
           </div>
@@ -239,7 +256,10 @@ export default function Home() {
             <p className="mb-6 text-slate-600">
               {t("app.features.battle_desc")}
             </p>
-            <button className="rounded-full bg-[var(--color-anti-purple)] px-6 py-2 text-sm font-bold text-white transition hover:bg-violet-700">
+            <button
+              onClick={() => handleJoin("BLACK")}
+              className="rounded-full bg-[var(--color-anti-purple)] px-6 py-2 text-sm font-bold text-white transition hover:bg-violet-700"
+            >
               {t("app.join_anti")}
             </button>
           </div>
@@ -252,7 +272,10 @@ export default function Home() {
               {t("faction.neutral")}
             </h3>
             <p className="mb-6 text-slate-600">{t("faction.neutral_slogan")}</p>
-            <button className="rounded-full bg-slate-700 px-6 py-2 text-sm font-bold text-white transition hover:bg-slate-800">
+            <button
+              onClick={() => handleJoin("NEUTRAL")}
+              className="rounded-full bg-slate-700 px-6 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
+            >
               {t("app.join_neutral")}
             </button>
           </div>
