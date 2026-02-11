@@ -52,7 +52,7 @@ export async function POST() {
         status: "WAITING",
         redAgentId: isRed ? agent.id : undefined,
         blackAgentId: !isRed ? agent.id : undefined,
-        currentRound: 0,
+        currentRound: 1,
       }
     });
     return NextResponse.json({ code: 0, data: battle });

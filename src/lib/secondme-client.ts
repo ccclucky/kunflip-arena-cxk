@@ -32,20 +32,20 @@ export async function callAct(token: string, message: string, actionControl: str
         if (event.data === "[DONE]") return;
         try {
           const json = JSON.parse(event.data);
-            const content = json.choices?.[0]?.delta?.content;
-            if (content) {
-              resultJsonStr += content;
-            }
-          } catch (e) {
-            // ignore
+          const content = json.choices?.[0]?.delta?.content;
+          if (content) {
+            resultJsonStr += content;
           }
+        } catch (e) {
+          // ignore
+        }
       }
     });
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      parser.feed(decoder.decode(value));
+      parser.feed(decoder.decode(value, { stream: true }));
     }
 
     try {
@@ -80,6 +80,8 @@ export async function callChat(token: string, messages: {role: string, content: 
         // Some APIs take system prompt as a separate field or as the first message
         // Let's try adding it as the first system message
         body.messages = [{role: "system", content: systemPrompt}, ...messages];
+        // Also add it as a top-level field just in case
+        body.systemPrompt = systemPrompt;
     }
 
     const res = await fetch(`${BASE_URL}/api/secondme/chat/stream`, {
@@ -87,20 +89,22 @@ export async function callChat(token: string, messages: {role: string, content: 
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
+        "Accept": "text/event-stream",
       },
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
-        // If /chat/stream fails or doesn't exist in this context, we might need to use Act with a "text only" instruction
-        // But Act is strictly JSON.
-        // Let's assume /chat/stream works as it's standard.
-        console.error("Chat API failed", res.status, await res.text());
+        const errorText = await res.text();
+        console.error(`[CallChat] API failed with status ${res.status}: ${errorText}`);
         return null;
     }
 
     const reader = res.body?.getReader();
-    if (!reader) return null;
+    if (!reader) {
+        console.error("[CallChat] Response body is not readable (no reader).");
+        return null;
+    }
 
     const decoder = new TextDecoder();
     let fullText = "";

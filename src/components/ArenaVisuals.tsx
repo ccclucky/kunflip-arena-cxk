@@ -8,6 +8,7 @@ type Round = {
   content: string;
   speaker: { faction: string };
   judgeScore?: number;
+  skillType?: string;
 };
 
 interface ArenaVisualsProps {
@@ -72,17 +73,40 @@ export function ArenaVisuals({
 
   // Watch for new rounds
   useEffect(() => {
-    // ... (existing round logic)
     if (rounds.length > 0) {
       const latestRound = rounds[rounds.length - 1];
       if (latestRound.id !== lastRoundIdRef.current) {
         lastRoundIdRef.current = latestRound.id;
+        
+        // 1. Content Danmaku -> REMOVED per user request (Speech should be in chat list only)
+        /*
         addItem({
           id: latestRound.id,
           text: latestRound.content,
           faction: latestRound.speaker.faction,
           isHighImpact: (latestRound.judgeScore || 0) > 80,
         });
+        */
+
+        // 2. Skill Trigger Danmaku
+        if (latestRound.skillType) {
+            let skillText = "";
+            if (latestRound.skillType === "LAWYER") skillText = "⚖️ LAWYER LETTER!";
+            if (latestRound.skillType === "SHOWTIME") skillText = "🏀 SHOWTIME!";
+            if (latestRound.skillType === "FEET") skillText = "🐔 CHICKEN FEET!";
+            if (latestRound.skillType === "REMIX") skillText = "💿 REMIX ATTACK!";
+
+            if (skillText) {
+                setTimeout(() => {
+                    addItem({
+                        id: latestRound.id + "-skill",
+                        text: skillText,
+                        faction: latestRound.speaker.faction,
+                        isHighImpact: true, // Always big for skills
+                    });
+                }, 500); // Slight delay
+            }
+        }
       }
     }
   }, [rounds]);

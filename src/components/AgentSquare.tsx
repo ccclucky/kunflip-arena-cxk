@@ -35,10 +35,12 @@ export function AgentSquare({
 
     // Translate status
     let statusText = "";
-    if (state.action === "THINKING") {
-      statusText = "Thinking...";
-    } else if (state.thought) {
+    if (state.thought) {
       statusText = state.thought;
+    } else if (state.action === "SEARCHING") {
+      statusText = "Matching...";
+    } else if (state.action === "THINKING") {
+      statusText = "Thinking...";
     } else if (state.action === "SPECTATING") {
       statusText = `Watching Arena ${state.targetId}`;
     }
@@ -67,7 +69,7 @@ export function AgentSquare({
           </motion.div>
         )}
 
-        <div className="cursor-pointer transition-transform hover:scale-110">
+        <div className={clsx("cursor-pointer transition-transform hover:scale-110", state.action === "SEARCHING" && "animate-pulse")}>
           <FactionFrame
             faction={agent.faction}
             size={isUser ? "md" : "sm"}

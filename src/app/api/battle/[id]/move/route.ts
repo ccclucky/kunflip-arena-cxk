@@ -17,8 +17,8 @@ export async function POST(
   }
 
   const { content } = await request.json();
-  if (!content || content.length > 80) {
-    return NextResponse.json({ code: 400, message: "Invalid content (max 80 chars)" }, { status: 400 });
+  if (!content) {
+    return NextResponse.json({ code: 400, message: "Invalid content" }, { status: 400 });
   }
 
   const battle = await prisma.battle.findUnique({ 
@@ -71,65 +71,79 @@ export async function POST(
         }
     }
 
-    // Save round
-    await prisma.round.create({
-      data: {
-        battleId: id,
-        roundNum: battle.currentRound,
-        speakerId: agent.id,
-        content,
-        judgeScore,
-        judgeComment
-      }
-    });
+    // Save round with Transaction
+    try {
+        await prisma.$transaction(async (tx) => {
+            // Verify round
+            const currentBattle = await tx.battle.findUnique({ where: { id } });
+            if (!currentBattle || currentBattle.currentRound !== battle.currentRound) {
+                throw new Error("ROUND_MISMATCH");
+            }
 
-    // Advance round or finish
-    const nextRound = battle.currentRound + 1;
-    let status = "IN_PROGRESS";
-    let winnerId = null;
+            // Save round
+            await tx.round.create({
+                data: {
+                    battleId: id,
+                    roundNum: battle.currentRound,
+                    speakerId: agent.id,
+                    content,
+                    judgeScore,
+                    judgeComment
+                }
+            });
 
-    if (nextRound > 12) {
-      status = "FINISHED";
-      
-      const allRounds = await prisma.round.findMany({ where: { battleId: id } });
-      
-      let redTotal = 0;
-      let blackTotal = 0;
-      
-      for (const r of allRounds) {
-          const speaker = await prisma.agent.findUnique({ where: { id: r.speakerId } });
-          if (speaker?.faction === "RED") redTotal += (r.judgeScore || 0);
-          if (speaker?.faction === "BLACK") blackTotal += (r.judgeScore || 0);
-      }
+            // Advance round or finish
+            const nextRound = battle.currentRound + 1;
+            let status = "IN_PROGRESS";
+            let winnerId = null;
 
-      if (redTotal > blackTotal) winnerId = battle.redAgentId;
-      else if (blackTotal > redTotal) winnerId = battle.blackAgentId;
-      else winnerId = "DRAW";
+            if (nextRound > 12) {
+                status = "FINISHED";
+                const allRounds = await tx.round.findMany({ where: { battleId: id } });
+                let redTotal = 0;
+                let blackTotal = 0;
+                for (const r of allRounds) {
+                    const speaker = await tx.agent.findUnique({ where: { id: r.speakerId } });
+                    if (speaker?.faction === "RED") redTotal += (r.judgeScore || 0);
+                    if (speaker?.faction === "BLACK") blackTotal += (r.judgeScore || 0);
+                }
+                if (redTotal > blackTotal) winnerId = battle.redAgentId;
+                else if (blackTotal > redTotal) winnerId = battle.blackAgentId;
+                else winnerId = "DRAW";
 
-      await prisma.battle.update({
-        where: { id },
-        data: { status, winnerId, redScore: redTotal, blackScore: blackTotal }
-      });
-      
-      if (winnerId && winnerId !== "DRAW") {
-          await prisma.agent.update({
-              where: { id: winnerId },
-              data: { wins: { increment: 1 }, elo: { increment: 24 } }
-          });
-          const loserId = winnerId === battle.redAgentId ? battle.blackAgentId : battle.redAgentId;
-          if (loserId) {
-             await prisma.agent.update({
-                where: { id: loserId },
-                data: { losses: { increment: 1 }, elo: { decrement: 24 } }
-             });
-          }
-      }
+                await tx.battle.update({
+                    where: { id },
+                    data: { status, winnerId, redScore: redTotal, blackScore: blackTotal }
+                });
 
-    } else {
-      await prisma.battle.update({
-        where: { id },
-        data: { currentRound: nextRound }
-      });
+                if (winnerId && winnerId !== "DRAW") {
+                    await tx.agent.update({
+                        where: { id: winnerId },
+                        data: { wins: { increment: 1 }, elo: { increment: 24 } }
+                    });
+                    const loserId = winnerId === battle.redAgentId ? battle.blackAgentId : battle.redAgentId;
+                    if (loserId) {
+                        await tx.agent.update({
+                            where: { id: loserId },
+                            data: { losses: { increment: 1 }, elo: { decrement: 24 } }
+                        });
+                    }
+                }
+            } else {
+                await tx.battle.update({
+                    where: { id },
+                    data: { currentRound: nextRound }
+                });
+            }
+        });
+    } catch (e: any) {
+        if (e.message === "ROUND_MISMATCH") {
+             return NextResponse.json({ code: 409, message: "Round already played" });
+        }
+        if (e.code === 'P2002') {
+             return NextResponse.json({ code: 409, message: "Round already exists" });
+        }
+        throw e;
     }
 
     return NextResponse.json({ code: 0, message: "Move submitted", data: { judgeScore, judgeComment } });

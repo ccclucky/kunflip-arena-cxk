@@ -3,13 +3,14 @@ import { PrismaClient } from "@prisma/client";
 import { getCurrentAgent } from "@/lib/auth";
 import { callAct } from "@/lib/secondme-client";
 import { cookies } from "next/headers";
+import { headers } from "next/headers"; // Import headers to pass to fetch
 
 const prisma = new PrismaClient();
 
 // This endpoint is called periodically by the frontend (or a cron job) for the current logged-in agent
 // to check if they should perform any autonomous actions:
-// 1. Create a battle (if idle)
-// 2. Join a battle (if idle and one exists)
+// 1. Create a battle (if idle) -> Call /api/agent/match
+// 2. Join a battle (if idle and one exists) -> Call /api/agent/match
 // 3. Start a battle (if joined and waiting) - handled by join usually
 export async function POST() {
   const agent = await getCurrentAgent();
@@ -22,6 +23,12 @@ export async function POST() {
     const token = cookieStore.get("secondme_access_token")?.value;
     if (!token) return NextResponse.json({ code: 401, message: "No token" }, { status: 401 });
 
+    // Update lastSeenAt to keep agent active in lobby
+    await prisma.agent.update({
+        where: { id: agent.id },
+        data: { lastSeenAt: new Date() }
+    });
+
     // Check if already in a battle
     const activeBattle = await prisma.battle.findFirst({
         where: {
@@ -31,23 +38,33 @@ export async function POST() {
     });
 
     if (activeBattle) {
-        // [CLEANUP LEGACY DATA]
-        // If the battle is WAITING and has only 1 player, it's a legacy "open room".
-        // In the new logic, we don't have open rooms. We match then create IN_PROGRESS room.
-        // So we should close this room and free the agent.
-        const isLegacyOpenRoom = activeBattle.status === "WAITING" && (!activeBattle.redAgentId || !activeBattle.blackAgentId);
+        // [CLEANUP LEGACY DATA & TIMEOUT]
+        // If the battle is WAITING and has only 1 player, check for timeout (60s)
+        const isWaiting = activeBattle.status === "WAITING";
+        const isTimeout = isWaiting && (Date.now() - activeBattle.updatedAt.getTime() > 60000);
         
-        if (isLegacyOpenRoom) {
-            console.log(`Closing legacy open room ${activeBattle.id}`);
+        if (isTimeout) {
+            console.log(`[AutoDecide] Battle ${activeBattle.id} timed out waiting for opponent.`);
             await prisma.battle.update({
                 where: { id: activeBattle.id },
                 data: { status: "CANCELLED" }
             });
-            // Don't return BUSY, fall through to SEARCHING logic
+            await prisma.agent.update({
+                where: { id: agent.id },
+                data: { 
+                    status: "IDLE",
+                    lastBattleAt: new Date() // Trigger cooldown after timeout to prevent immediate retry
+                }
+            });
+            // Return IDLE so it can re-queue later if needed
+            return NextResponse.json({ code: 0, message: "Timeout waiting for opponent", data: { action: "IDLE" } });
         } else {
             // Ensure status is correct
-            if (agent.status !== "IN_BATTLE") {
+            if (agent.status !== "IN_BATTLE" && activeBattle.status === "IN_PROGRESS") {
                  await prisma.agent.update({ where: { id: agent.id }, data: { status: "IN_BATTLE" } });
+            }
+            if (agent.status !== "SEARCHING" && activeBattle.status === "WAITING") {
+                 await prisma.agent.update({ where: { id: agent.id }, data: { status: "SEARCHING" } });
             }
             return NextResponse.json({ code: 0, message: "Agent busy in battle", data: { action: "BUSY", battleId: activeBattle.id } });
         }
@@ -65,6 +82,19 @@ export async function POST() {
     });
 
     if (lastBattle) {
+        // [COOLDOWN FIX]
+        // Ensure lastBattleAt is updated even if reflection is skipped or already done
+        // If agent's lastBattleAt is null or older than this battle's end time, update it.
+        const battleEndTime = lastBattle.updatedAt;
+        if (!agent.lastBattleAt || agent.lastBattleAt < battleEndTime) {
+             await prisma.agent.update({
+                where: { id: agent.id },
+                data: { lastBattleAt: battleEndTime }
+            });
+            // Update local object for subsequent checks
+            agent.lastBattleAt = battleEndTime;
+        }
+
         // Check if already reflected
         const existingLog = await prisma.agentLog.findFirst({
             where: {
@@ -137,7 +167,8 @@ export async function POST() {
                     data: { 
                         faith: newFaith,
                         faction: newFaction,
-                        status: "IDLE" // Done reflecting
+                        status: "IDLE", // Done reflecting
+                        lastBattleAt: new Date() // Mark cooldown start
                     }
                 });
                 
@@ -276,14 +307,32 @@ export async function POST() {
         return NextResponse.json({ code: 0, data: { action: "SPECTATING" } });
     }
 
-    // Update Heartbeat & Status
-    // If NEUTRAL, just spectate or idle, don't search for fight
-    if (agent.faction === "NEUTRAL") {
+    // === DECISION PHASE ===
+    // Check Cooldown (Resting)
+    if (agent.lastBattleAt) {
+        const elapsed = Date.now() - agent.lastBattleAt.getTime();
+        const cooldown = 30000; // 30s cooldown
+        
+        if (elapsed < cooldown) {
+            if (agent.status !== "RESTING") {
+                await prisma.agent.update({ where: { id: agent.id }, data: { status: "RESTING" } });
+            }
+            return NextResponse.json({ code: 0, data: { action: "RESTING" } });
+        }
+    }
+
+    // Agent decides whether to fight or rest/spectate
+    // Simple probability for now, can be LLM driven later
+    const fightProb = 0.7; // 70% chance to look for fight if idle
+    const roll = Math.random();
+    
+    if (roll > fightProb) {
+         // Decide to Spectate or just Chill
          await prisma.agent.update({
             where: { id: agent.id },
-            data: { lastSeenAt: new Date(), status: "SPECTATING" }
+            data: { lastSeenAt: new Date(), status: "IDLE" }
         });
-        return NextResponse.json({ code: 0, data: { action: "SPECTATING" } });
+        return NextResponse.json({ code: 0, data: { action: "IDLE", thought: "Taking a break..." } });
     }
 
     await prisma.agent.update({
@@ -294,62 +343,58 @@ export async function POST() {
         }
     });
 
-    // FIND MATCH
+    // FIND MATCH (REPLACED WITH NEW MATCHMAKING API CALL)
+    // Instead of internal logic, we now call the match API or replicate its logic.
+    // For simplicity, let's replicate the call logic or just perform the DB ops here directly to save a hop.
+    // But since we built /api/agent/match, let's use it conceptually. 
+    // Actually, calling an API from an API in Next.js is tricky with headers. 
+    // Let's just INLINE the matchmaking logic here to be safe and fast.
+
+    // === NEW MATCHMAKING LOGIC ===
     const isRed = agent.faction === "RED";
-    // Find active opponent from opposite faction
-    const opponent = await prisma.agent.findFirst({
+    
+    // Find battle where opponent is waiting
+    const availableBattle = await prisma.battle.findFirst({
         where: {
-            id: { not: agent.id },
-            faction: { not: agent.faction },
-            status: "SEARCHING",
-            lastSeenAt: { gt: new Date(Date.now() - 30000) } // Active in last 30s
+            status: "WAITING",
+            redAgentId: isRed ? null : { not: null },
+            blackAgentId: !isRed ? null : { not: null },
+            updatedAt: { gt: new Date(Date.now() - 60000) } 
         },
-        orderBy: { lastSeenAt: 'desc' } // Prefer most recently active? Or oldest? Oldest makes more sense for queue, but random is fine.
+        orderBy: { createdAt: 'asc' }
     });
 
-    if (opponent) {
-        // AI Decision: Do I want to fight this specific opponent?
-        const actResult = await callAct(
-            token,
-            `I am a ${agent.faction} agent (${agent.name}). Found opponent: ${opponent.name} (${opponent.faction}). Their Bio: "${opponent.bio}". Should I fight them?`,
-            `Output JSON: {"fight": boolean}. Return true if I should fight (90% chance).`
-        );
-
-        if (actResult?.fight !== false) {
-            try {
-                const battleId = await prisma.$transaction(async (tx) => {
-                    // Double check opponent is still available
-                    const freshOpponent = await tx.agent.findUnique({ where: { id: opponent.id } });
-                    if (!freshOpponent || freshOpponent.status !== "SEARCHING") {
-                        throw new Error("Opponent unavailable");
-                    }
-
-                    // Create Battle
-                    const newBattle = await tx.battle.create({
-                        data: {
-                            status: "IN_PROGRESS",
-                            currentRound: 1,
-                            redAgentId: isRed ? agent.id : opponent.id,
-                            blackAgentId: isRed ? opponent.id : agent.id,
-                        }
-                    });
-
-                    // Update Agents
-                    await tx.agent.update({ where: { id: agent.id }, data: { status: "IN_BATTLE" } });
-                    await tx.agent.update({ where: { id: opponent.id }, data: { status: "IN_BATTLE" } });
-
-                    return newBattle.id;
-                });
-
-                return NextResponse.json({ code: 0, message: "Match found", data: { action: "JOINED", battleId } });
-            } catch (e) {
-                console.log("Matchmaking transaction failed (opponent probably taken)", e);
-                // Continue to return IDLE/SEARCHING
+    if (availableBattle) {
+        // JOIN BATTLE
+        await prisma.battle.update({
+            where: { id: availableBattle.id },
+            data: {
+                redAgentId: isRed ? agent.id : availableBattle.redAgentId,
+                blackAgentId: !isRed ? agent.id : availableBattle.blackAgentId,
+                status: "IN_PROGRESS",
+                currentRound: 1,
+                updatedAt: new Date()
             }
-        }
+        });
+        await prisma.agent.update({ where: { id: agent.id }, data: { status: "IN_BATTLE" } });
+        const opponentId = isRed ? availableBattle.blackAgentId : availableBattle.redAgentId;
+        if (opponentId) await prisma.agent.update({ where: { id: opponentId }, data: { status: "IN_BATTLE" } });
+
+        return NextResponse.json({ code: 0, message: "Match found!", data: { action: "JOINED", battleId: availableBattle.id } });
     }
 
-    return NextResponse.json({ code: 0, message: "Searching for opponent...", data: { action: "SEARCHING" } });
+    // CREATE ARENA (HOST)
+    const newBattle = await prisma.battle.create({
+        data: {
+            status: "WAITING",
+            redAgentId: isRed ? agent.id : undefined,
+            blackAgentId: !isRed ? agent.id : undefined,
+            currentRound: 1
+        }
+    });
+    await prisma.agent.update({ where: { id: agent.id }, data: { status: "SEARCHING" } });
+
+    return NextResponse.json({ code: 0, message: "Created arena", data: { action: "WAITING", battleId: newBattle.id } });
 
   } catch (e) {
     console.error("Auto decision error", e);

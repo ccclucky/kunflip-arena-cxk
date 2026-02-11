@@ -35,6 +35,8 @@ type Round = {
   speaker: Agent;
   judgeScore?: number;
   judgeComment?: string;
+  skillType?: string;
+  skillEffect?: string;
 };
 
 type Battle = {
@@ -66,6 +68,26 @@ export default function ArenaPage({
   const [submitting, setSubmitting] = useState(false);
   const [votedRounds, setVotedRounds] = useState<Set<string>>(new Set());
   const [entryAnim, setEntryAnim] = useState(false); // Entry animation state
+
+  // Timer for Waiting
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!battle) return;
+
+    if (battle.status === "WAITING") {
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - new Date(battle.updatedAt).getTime();
+        const remaining = Math.max(0, 60000 - elapsed);
+        setTimeLeft(Math.ceil(remaining / 1000));
+        
+        // If timeout reached, it should be handled by backend, but we can show 0
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+        setTimeLeft(null);
+    }
+  }, [battle]);
 
   // Derive Spectators
   const spectators = activeAgents.filter((a) => {
@@ -176,7 +198,10 @@ export default function ArenaPage({
     me?.id === battle.redAgent?.id || me?.id === battle.blackAgent?.id;
 
   // Determine active state for avatars
-  // If waiting, both active. If in progress, turn-based.
+  // If waiting, both active (waiting for match). 
+  // If in progress:
+  // - Round 1, 3, 5 (Odd)  -> Red Turn
+  // - Round 2, 4, 6 (Even) -> Black Turn
   const isRedActive =
     battle.status === "WAITING" || battle.currentRound % 2 !== 0;
   const isBlackActive =
@@ -207,10 +232,10 @@ export default function ArenaPage({
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col pt-20">
+      <main className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col pt-24">
         {/* Scoreboard / Agents */}
-        <div className="mb-8 px-4">
-          <div className="mb-6 flex items-end justify-between gap-4">
+        <div className="mb-4 px-8 md:px-24 lg:px-32">
+          <div className="mb-4 flex items-end justify-between gap-4">
             {/* RED AGENT */}
             <div
               className={clsx(
@@ -231,13 +256,12 @@ export default function ArenaPage({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="h-full w-full bg-slate-200"></div>
+                  <div className="flex h-full w-full items-center justify-center bg-slate-200 text-slate-400 font-bold text-2xl">
+                    ?
+                  </div>
                 )}
-                <div className="absolute bottom-0 w-full bg-[var(--color-ikun-gold)] text-center text-[10px] font-bold text-white">
-                  IKUN
-                </div>
               </FactionFrame>
-              <div className="text-center">
+              <div className="text-center mt-2">
                 <div className="font-display text-lg font-bold text-[var(--color-ikun-gold)]">
                   {battle.redAgent?.name || "???"}
                 </div>
@@ -245,11 +269,46 @@ export default function ArenaPage({
                   {t("arena.score", { n: battle.redScore || 0 })}
                 </div>
               </div>
+
+              {/* Red Thought Bubble */}
+              {(() => {
+                  const sim = battle.redAgent ? simStates.get(battle.redAgent.id) : null;
+                  if (sim?.thought) {
+                      return (
+                          <div className="absolute top-0 left-full ml-4 w-40 z-20 pointer-events-none hidden md:block">
+                              <div className="relative bg-white border-2 border-[var(--color-ikun-gold)] rounded-xl p-2 shadow-lg animate-bounce-subtle">
+                                  <div className="text-xs font-bold text-slate-700 text-center leading-tight">
+                                      {sim.thought}
+                                  </div>
+                                  <div className="absolute top-4 -left-2 w-3 h-3 bg-white border-b-2 border-l-2 border-[var(--color-ikun-gold)] rotate-45"></div>
+                              </div>
+                          </div>
+                      );
+                  }
+                  return null;
+              })()}
+              {/* Mobile Red Bubble (Top) */}
+              {(() => {
+                  const sim = battle.redAgent ? simStates.get(battle.redAgent.id) : null;
+                  if (sim?.thought) {
+                      return (
+                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 z-20 pointer-events-none md:hidden">
+                              <div className="relative bg-white border-2 border-[var(--color-ikun-gold)] rounded-xl p-2 shadow-lg animate-bounce-subtle">
+                                  <div className="text-xs font-bold text-slate-700 text-center leading-tight">
+                                      {sim.thought}
+                                  </div>
+                                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-[var(--color-ikun-gold)] rotate-45"></div>
+                              </div>
+                          </div>
+                      );
+                  }
+                  return null;
+              })()}
             </div>
 
             {/* VS / Energy Bar */}
-            <div className="flex-1 flex flex-col items-center pb-8">
-              <div className="mb-2 font-display text-4xl font-black italic tracking-tighter text-slate-200">
+            <div className="flex-1 flex flex-col items-center pb-2">
+              <div className="mb-1 font-display text-3xl font-black italic tracking-tighter text-slate-200">
                 VS
               </div>
               <BattleProgress
@@ -278,13 +337,12 @@ export default function ArenaPage({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="h-full w-full bg-slate-200"></div>
+                  <div className="flex h-full w-full items-center justify-center bg-slate-200 text-slate-400 font-bold text-2xl">
+                    ?
+                  </div>
                 )}
-                <div className="absolute bottom-0 w-full bg-[var(--color-anti-purple)] text-center text-[10px] font-bold text-white">
-                  ANTI
-                </div>
               </FactionFrame>
-              <div className="text-center">
+              <div className="text-center mt-2">
                 <div className="font-display text-lg font-bold text-[var(--color-anti-purple)]">
                   {battle.blackAgent?.name || "???"}
                 </div>
@@ -292,6 +350,41 @@ export default function ArenaPage({
                   {t("arena.score", { n: battle.blackScore || 0 })}
                 </div>
               </div>
+
+               {/* Black Thought Bubble */}
+               {(() => {
+                  const sim = battle.blackAgent ? simStates.get(battle.blackAgent.id) : null;
+                  if (sim?.thought) {
+                      return (
+                          <div className="absolute top-0 right-full mr-4 w-40 z-20 pointer-events-none hidden md:block">
+                              <div className="relative bg-white border-2 border-slate-800 rounded-xl p-2 shadow-lg animate-bounce-subtle">
+                                  <div className="text-xs font-bold text-slate-700 text-center leading-tight">
+                                      {sim.thought}
+                                  </div>
+                                  <div className="absolute top-4 -right-2 w-3 h-3 bg-white border-t-2 border-r-2 border-slate-800 rotate-45"></div>
+                              </div>
+                          </div>
+                      );
+                  }
+                  return null;
+              })()}
+              {/* Mobile Black Bubble (Top) */}
+              {(() => {
+                  const sim = battle.blackAgent ? simStates.get(battle.blackAgent.id) : null;
+                  if (sim?.thought) {
+                      return (
+                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 z-20 pointer-events-none md:hidden">
+                              <div className="relative bg-white border-2 border-slate-800 rounded-xl p-2 shadow-lg animate-bounce-subtle">
+                                  <div className="text-xs font-bold text-slate-700 text-center leading-tight">
+                                      {sim.thought}
+                                  </div>
+                                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-slate-800 rotate-45"></div>
+                              </div>
+                          </div>
+                      );
+                  }
+                  return null;
+              })()}
             </div>
           </div>
         </div>
@@ -320,6 +413,34 @@ export default function ArenaPage({
               {battle.rounds.map((round, i) => {
                 const isRed = round.speaker.faction === "RED";
                 const isMe = round.speakerId === me?.id;
+                
+                // Skill Badges
+                let skillBadge = null;
+                if (round.skillType === "LAWYER") {
+                    skillBadge = (
+                        <div className="mb-1 flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full w-fit animate-pulse">
+                            <Scale className="h-3 w-3" /> 律师函警告 (Logic UP)
+                        </div>
+                    );
+                } else if (round.skillType === "SHOWTIME") {
+                    skillBadge = (
+                        <div className="mb-1 flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full w-fit animate-bounce">
+                            <Zap className="h-3 w-3" /> 唱跳RAP (Score +30)
+                        </div>
+                    );
+                } else if (round.skillType === "FEET") {
+                    skillBadge = (
+                        <div className="mb-1 flex items-center gap-1 text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full w-fit animate-shake">
+                            <AlertTriangle className="h-3 w-3" /> 露出鸡脚 (Risk 50/50)
+                        </div>
+                    );
+                } else if (round.skillType === "REMIX") {
+                    skillBadge = (
+                        <div className="mb-1 flex items-center gap-1 text-[10px] font-bold text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full w-fit animate-pulse">
+                            <Zap className="h-3 w-3" /> 鬼畜调教 (Chaos)
+                        </div>
+                    );
+                }
 
                 return (
                   <div
@@ -351,6 +472,9 @@ export default function ArenaPage({
                           {round.speaker.name}
                         </span>
                       </div>
+                      
+                      {skillBadge}
+
                       <div
                         className={clsx(
                           "rounded-2xl px-4 py-2 text-sm font-medium shadow-sm",
@@ -365,6 +489,7 @@ export default function ArenaPage({
                         <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
                           <Scale className="h-3 w-3" />
                           <span>Impact: {round.judgeScore}</span>
+                          {round.judgeComment && <span className="opacity-50">({round.judgeComment})</span>}
                         </div>
                       )}
                     </div>
@@ -381,6 +506,25 @@ export default function ArenaPage({
                         {t("arena.waiting_battle")}
                       </div>
                       <div className="text-sm">Waiting for a challenger...</div>
+                      {timeLeft !== null && (
+                        <div className="mt-4 text-3xl font-black font-display text-[var(--color-text-muted)] animate-pulse">
+                            {timeLeft}s
+                        </div>
+                      )}
+
+                      {/* DEV: Spawn Bot Button */}
+                      <button 
+                        onClick={() => {
+                            fetch('/api/dev/spawn-bot', { 
+                                method: 'POST', 
+                                body: JSON.stringify({ battleId: id }) 
+                            });
+                        }}
+                        className="mt-8 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full text-xs font-bold border border-slate-300 transition-colors"
+                      >
+                        <Bot className="inline w-3 h-3 mr-1" />
+                        [DEV] Summon Training Bot
+                      </button>
                     </>
                   ) : (
                     <>

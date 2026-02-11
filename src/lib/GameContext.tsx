@@ -16,7 +16,6 @@ import {
   Agent,
   AgentHistoryItem,
   AgentThought,
-  generateBattleMessage,
 } from "@/lib/game-logic";
 
 // --- Types ---
@@ -208,11 +207,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return next;
       });
     }
+
+    // Auto-redirect to arena when my battle starts
+    if (agent) {
+        battles.forEach(b => {
+            const prev = prevBattlesRef.current.get(b.id);
+            if (b.status === "IN_PROGRESS" && prev && prev.status === "WAITING") {
+                if (b.redAgent?.id === agent.id || b.blackAgent?.id === agent.id) {
+                    router.push(`/arena/${b.id}`);
+                }
+            }
+        });
+    }
   }, [battles]);
 
   // --- 3. Actions ---
   const handleJoinBattle = (battleId: string) => {
-    router.push(`/arena/${battleId}`);
+    // Redirect to arena page for any battle status
+    const battle = battles.find(b => b.id === battleId);
+    if (battle) {
+        router.push(`/arena/${battleId}`);
+    }
   };
 
   const handleCreateBattle = async () => {
@@ -296,23 +311,77 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
           if (activeBattle) {
             const shouldBeAction =
-              activeBattle.status === "IN_PROGRESS" ? "FIGHTING" : "DEFENDING";
+              activeBattle.status === "IN_PROGRESS" ? "FIGHTING" : "DEFENDING"; // DEFENDING maps to waiting on stage
 
-            if (currentSim.action !== shouldBeAction) {
+            let newThought = currentSim.thought;
+            if (shouldBeAction === "FIGHTING") {
+                newThought = "Fighting for glory!";
+            } else {
+                 // Waiting on stage thought logic
+                 const thoughts = a.faction === "RED" 
+                    ? ["Bring it on!", "Adjusting suspenders...", "Where is the music?", "Is the mic on?"]
+                    : ["Analyzing data...", "Checking facts...", "Loading memes...", "Prepare to lose."];
+                
+                if (!currentSim.thought || currentSim.thought === "Waiting for opponent..." || Math.random() < 0.05) {
+                    newThought = thoughts[Math.floor(Math.random() * thoughts.length)];
+                }
+            }
+
+            if (currentSim.action !== shouldBeAction || currentSim.thought !== newThought) {
               next.set(a.id, {
                 ...currentSim,
                 action: shouldBeAction,
                 targetId: activeBattle.id,
-                thought:
-                  shouldBeAction === "FIGHTING"
-                    ? "Fighting for glory!"
-                    : "Waiting for opponent...",
+                thought: newThought,
                 lastStateChange: now,
               });
               hasChanges = true;
             }
             // Skip decision logic if in battle
             return;
+          }
+
+          // FORCE SYNC: If agent is searching (from backend status), force SEARCHING state
+          if (a.status === "SEARCHING") {
+             // Randomly change thought if already searching
+             const thoughts = a.faction === "RED" 
+                ? ["Where are the haters?", "My lawyer is ready.", "Practicing moves...", "Need a stage!"]
+                : ["Showing the truth!", "Exposing fake fans...", "Preparing evidence.", "Who wants to debate?"];
+            
+            // 5% chance to change thought per tick
+            const newThought = Math.random() < 0.05 
+                ? thoughts[Math.floor(Math.random() * thoughts.length)]
+                : (currentSim.thought === "Looking for opponent..." ? thoughts[0] : currentSim.thought);
+
+            if (currentSim.action !== "SEARCHING" || currentSim.thought !== newThought) {
+              next.set(a.id, {
+                ...currentSim,
+                action: "SEARCHING",
+                thought: newThought,
+                lastStateChange: now,
+              });
+              hasChanges = true;
+            }
+            return;
+          }
+
+          // FORCE SYNC: If agent is resting (from backend status)
+          if (a.status === "RESTING") {
+             const restThoughts = ["Taking a breather...", "Recovering energy...", "Analyzing last match...", "Too tired to fight."];
+             const newThought = Math.random() < 0.05
+                ? restThoughts[Math.floor(Math.random() * restThoughts.length)]
+                : (currentSim.thought || "Resting...");
+
+             if (currentSim.action !== "RESTING" || currentSim.thought !== newThought) {
+                next.set(a.id, {
+                    ...currentSim,
+                    action: "RESTING", // Need to ensure RESTING is in AgentSimState type
+                    thought: newThought,
+                    lastStateChange: now,
+                });
+                hasChanges = true;
+             }
+             return;
           }
 
           const nextSim = decideNextAction(a, currentSim, arenaStates, now);
@@ -352,21 +421,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
             next.set(a.id, nextSim);
             hasChanges = true;
 
-            // Handle Auto-Actions for Current User
-            if (a.id === agent.id) {
-              if (
-                nextSim.action === "DEFENDING" &&
-                currentSim.action !== "DEFENDING"
-              ) {
-                handleCreateBattle();
-              } else if (
-                nextSim.action === "FIGHTING" &&
-                currentSim.action !== "FIGHTING" &&
-                nextSim.targetId
-              ) {
-                handleJoinBattle(String(nextSim.targetId));
-              }
-            }
+            // [FIX] Removed Auto-Actions from Frontend
+            // All actual actions (Join/Create) are now handled by /api/agent/auto-decide response
+            // to prevent "jumping on stage immediately" issue.
+            // Frontend only handles visual simulation.
           }
         });
 
@@ -397,6 +455,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [activeAgents, agent, battles, loading]);
 
   // --- 5. Auto-Battle Logic ---
+  const processingRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!agent) return;
 
@@ -414,6 +474,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     // Poller for this specific battle
     const battlePoller = setInterval(async () => {
+      // Prevent overlapping calls for the same battle
+      if (processingRef.current.has(battleId)) return;
+
       try {
         const res = await fetch(`/api/battle/${battleId}`);
         const json = await res.json();
@@ -433,17 +496,39 @@ export function GameProvider({ children }: { children: ReactNode }) {
             // Check if I already submitted (just in case of race condition)
             // Actually, if it's my turn, it means the last round was opponent's.
             // So I should act.
-            // Add a small random delay to simulate thinking/allow user to intercept?
-            // No, user wants agent to act.
-
-            // Post message
-            const content = generateBattleMessage(myFaction);
-            await fetch(`/api/battle/${battleId}/round`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ content }),
-            });
-            // Don't need to do anything else, next poll will see new round
+            
+            processingRef.current.add(battleId);
+            const locale = localStorage.getItem("app-locale") || "zh";
+            try {
+                await fetch(`/api/battle/${battleId}/auto-move`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ lang: locale }),
+                });
+            } finally {
+                processingRef.current.delete(battleId);
+            }
+          } else {
+             // It's opponent's turn. Check if opponent is a DEV BOT and trigger them if so.
+             // We do this optimistically; the backend will verify if it's really a bot's turn.
+             // We use a small delay or just fire it; duplicate calls are safe-guarded by backend state check.
+             
+             // Check if opponent is bot (locally if possible, otherwise backend handles it)
+             const opponent = myFaction === "RED" ? fullBattle.blackAgent : fullBattle.redAgent;
+             if (opponent?.user?.secondmeUserId?.startsWith("bot_")) {
+                 processingRef.current.add(battleId);
+                 const locale = localStorage.getItem("app-locale") || "zh";
+                 fetch(`/api/battle/${battleId}/bot-move`, { 
+                     method: "POST",
+                     headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify({ lang: locale }) 
+                 })
+                 .catch(() => {})
+                 .finally(() => {
+                     // Add a small delay before unlocking to allow backend state to settle
+                     setTimeout(() => processingRef.current.delete(battleId), 1000);
+                 });
+             }
           }
         }
       } catch (e) {
@@ -453,6 +538,40 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     return () => clearInterval(battlePoller);
   }, [agent, battles]);
+
+  // --- 5. Auto-Decide (Agent Brain) ---
+  useEffect(() => {
+    if (!agent) return;
+
+    const brainTimer = setInterval(async () => {
+        try {
+            const res = await fetch("/api/agent/auto-decide", { method: "POST" });
+            const json = await res.json();
+            if (json.code === 0 && json.data) {
+                const action = json.data.action;
+                const battleId = json.data.battleId;
+
+                // Handle Navigation Actions from Backend
+                if (action === "JOINED" && battleId) {
+                    router.push(`/arena/${battleId}`);
+                } else if (action === "WAITING" && battleId) {
+                    // Do not auto-redirect when waiting for opponent
+                    // router.push(`/arena/${battleId}`);
+                }
+                
+                // Refresh agent/lobby if state changed
+                if (action !== "IDLE") {
+                    fetchAgent();
+                    fetchLobby();
+                }
+            }
+        } catch (e) {
+            console.error("Brain error", e);
+        }
+    }, 5000); // Think every 5 seconds
+
+    return () => clearInterval(brainTimer);
+  }, [agent]);
 
   return (
     <GameContext.Provider

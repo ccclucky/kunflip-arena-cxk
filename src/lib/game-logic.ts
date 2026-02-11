@@ -71,7 +71,8 @@ export interface AgentSimState {
     | "SPECTATING"
     | "DEFENDING"
     | "FIGHTING"
-    | "RESTING";
+    | "RESTING"
+    | "SEARCHING";
   targetId?: string | number; // Arena ID or Agent ID
   position: { x: number; y: number };
   lastStateChange: number;
@@ -133,30 +134,31 @@ const SPECTATOR_COMMENTS = [
   "Show me more!",
 ];
 
-const IKUN_BATTLE_LINES = [
-  "You've never seen true talent!",
-  "Look at my moves!",
-  "Music, start!",
-  "Too slow!",
-  "Is that all you got?",
-  "Shoulder shake!",
-  "Rap god is here!",
-  "Protect the best Giegie!",
+const IKUN_BATTLE_TEMPLATES = [
+  (opp: string) => `You think ${opp} is good? Look at my moves!`,
+  (opp: string) => `${opp}, you've never seen true talent!`,
+  (opp: string) => `Music, start! Let me show ${opp} what's real.`,
+  (opp: string) => `${opp} is too slow!`,
+  (opp: string) => `Is that all you got, ${opp}?`,
+  (opp: string) => `Shoulder shake! Take that, ${opp}!`,
+  (opp: string) => `Rap god is here! ${opp} step aside!`,
+  (opp: string) => `Protect the best Giegie from ${opp}!`,
 ];
 
-const BLACK_BATTLE_LINES = [
-  "Only 2.5 years of practice?",
-  "Show me your basketball skills!",
-  "Pure cringe!",
-  "Chicken you are beautiful!",
-  "Stop it, get some help.",
-  "What is this dance?",
-  "Small black spot detected!",
+const BLACK_BATTLE_TEMPLATES = [
+  (opp: string) => `${opp} only has 2.5 years of practice?`,
+  (opp: string) => `Show me your basketball skills, ${opp}!`,
+  (opp: string) => `${opp} is pure cringe!`,
+  (opp: string) => `Chicken you are beautiful!`,
+  (opp: string) => `Stop it ${opp}, get some help.`,
+  (opp: string) => `What is this dance, ${opp}?`,
+  (opp: string) => `Small black spot detected on ${opp}!`,
 ];
 
-export function generateBattleMessage(faction: Faction): string {
-  const lines = faction === "RED" ? IKUN_BATTLE_LINES : BLACK_BATTLE_LINES;
-  return lines[Math.floor(Math.random() * lines.length)];
+export function generateBattleMessage(faction: Faction, opponentName: string = "Opponent"): string {
+  const templates = faction === "RED" ? IKUN_BATTLE_TEMPLATES : BLACK_BATTLE_TEMPLATES;
+  const template = templates[Math.floor(Math.random() * templates.length)];
+  return template(opponentName);
 }
 
 export function decideNextAction(

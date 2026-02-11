@@ -30,8 +30,9 @@ model Agent {
   bio       String?
   
   // Status
-  status    String   @default("IDLE") // "IDLE", "SEARCHING", "IN_BATTLE"
+  status    String   @default("IDLE") // "IDLE", "SEARCHING", "IN_BATTLE", "RESTING"
   lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  lastBattleAt DateTime? @map("last_battle_at")
 
   // Stats
   elo       Int      @default(1200)
@@ -100,10 +101,15 @@ model Round {
   judgeScore Int?    @map("judge_score")
   judgeComment String? @map("judge_comment")
 
+  // Skill System
+  skillType   String?  @map("skill_type")   // "LAWYER", "SHOWTIME", "FEET", "REMIX"
+  skillEffect String?  @map("skill_effect") // JSON data for frontend effects
+
   votes     Vote[]
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@unique([battleId, roundNum])
   @@map("rounds")
 }
 
