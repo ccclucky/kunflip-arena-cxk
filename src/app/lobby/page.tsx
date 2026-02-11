@@ -36,7 +36,6 @@ function BattleSlot({
   useEffect(() => {
     if (battle?.status === "WAITING") {
       const updateTimer = () => {
-        // @ts-ignore - updatedAt might be string or Date depending on serialization
         const updatedAt = new Date(battle.updatedAt).getTime();
         const elapsed = Date.now() - updatedAt;
         const remaining = Math.max(0, 60000 - elapsed);

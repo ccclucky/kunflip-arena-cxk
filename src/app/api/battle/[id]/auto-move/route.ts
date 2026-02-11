@@ -319,10 +319,8 @@ export async function POST(
 
     // === APPLY SKILL EFFECTS ===
     if (skillEffect) {
-        // @ts-ignore
         if (skillEffect.scoreMod) judgeScore += skillEffect.scoreMod;
         
-        // @ts-ignore
         if (skillEffect.rng) {
             const luck = Math.random();
             if (luck > 0.5) {

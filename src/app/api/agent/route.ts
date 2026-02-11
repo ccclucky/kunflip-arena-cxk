@@ -50,14 +50,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ code: 0, data: null });
     }
 
-    // @ts-expect-error -- Agent model might be missing in client
     const agent = await prisma.agent.findUnique({
       where: { userId: user.id },
     });
 
     if (agent) {
       // Update lastSeenAt (Heartbeat)
-      // @ts-expect-error -- Agent model dynamic
       await prisma.agent.update({
         where: { id: agent.id },
         data: { lastSeenAt: new Date() },
