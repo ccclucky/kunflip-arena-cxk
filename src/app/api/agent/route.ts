@@ -23,6 +23,7 @@ export async function GET(req: Request) {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get("secondme_access_token")?.value;
+    const refreshToken = cookieStore.get("secondme_refresh_token")?.value || "";
 
     if (!accessToken) {
       return NextResponse.json(
@@ -42,19 +43,53 @@ export async function GET(req: Request) {
     const secondMeUserId =
       secondMeUser.id || secondMeUser.sub || secondMeUser.userId;
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { secondmeUserId: String(secondMeUserId) },
     });
 
+    // Auto-create User if missing
     if (!user) {
-      return NextResponse.json({ code: 0, data: null });
+      user = await prisma.user.create({
+        data: {
+          secondmeUserId: String(secondMeUserId),
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          tokenExpiresAt: new Date(Date.now() + 3600000 * 2), // Default 2h
+        },
+      });
     }
 
-    const agent = await prisma.agent.findUnique({
+    let agent = await prisma.agent.findUnique({
       where: { userId: user.id },
     });
 
-    if (agent) {
+    // Auto-create Agent if missing (Sync from SecondMe)
+    if (!agent) {
+      const name =
+        secondMeUser.name ||
+        secondMeUser.nickname ||
+        `Agent-${String(secondMeUserId).slice(-4)}`;
+      const avatarUrl =
+        secondMeUser.avatar ||
+        secondMeUser.avatarUrl ||
+        secondMeUser.picture ||
+        "";
+      const bio =
+        secondMeUser.bio ||
+        secondMeUser.introduction ||
+        "I am ready for the KunFlip Arena!";
+
+      agent = await prisma.agent.create({
+        data: {
+          userId: user.id,
+          name,
+          avatarUrl,
+          bio,
+          faction: "NEUTRAL", // Default faction
+          status: "IDLE",
+        },
+      });
+    } else {
       // Update lastSeenAt (Heartbeat)
       await prisma.agent.update({
         where: { id: agent.id },
@@ -150,8 +185,23 @@ export async function POST(req: Request) {
   });
 
   if (existingAgent) {
-    // Update? Or return error? Let's allow update for bio/name but not faction ideally.
-    // But for now, let's just return the existing one.
+    // If agent exists but is NEUTRAL, allow updating faction/bio/name (completing registration)
+    if (existingAgent.faction === "NEUTRAL") {
+      const updatedAgent = await prisma.agent.update({
+        where: { id: existingAgent.id },
+        data: {
+          faction,
+          name: name || existingAgent.name,
+          bio: bio || existingAgent.bio,
+          avatarUrl:
+            secondMeUser.avatarUrl ||
+            secondMeUser.picture ||
+            existingAgent.avatarUrl,
+        },
+      });
+      return NextResponse.json({ code: 0, data: updatedAgent });
+    }
+
     return NextResponse.json(
       { code: 409, message: "Agent already exists", data: existingAgent },
       { status: 409 },
