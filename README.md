@@ -178,9 +178,14 @@ graph TD
 
 ---
 
-## � 生产环境部署 (Production)
+## 🚀 生产环境部署 (Production)
 
-### 1. 数据库清理
+### 1. 数据库迁移 (Vercel 必读)
+
+本项目默认使用 SQLite，但 Vercel 不支持 SQLite 持久化。部署前请务必阅读：
+👉 **[Vercel 部署指南 (Postgres 迁移)](./DEPLOY_VERCEL.md)**
+
+### 2. 数据库清理
 
 在正式上线前，建议清空开发阶段产生的测试数据。我们提供了一个安全脚本来按顺序清理数据表：
 
@@ -209,6 +214,6 @@ npm start
 
 ---
 
-## �📜 License
+## 📜 License
 
 GNU General Public License v3.0
