@@ -32,6 +32,9 @@ export interface Agent {
   contribution?: number;
   logs?: AgentLog[]; // Backend logs
   status?: string;
+  user?: {
+    secondmeUserId?: string;
+  };
 }
 
 const IKUN_AVATARS = [

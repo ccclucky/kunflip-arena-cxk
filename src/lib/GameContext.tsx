@@ -27,6 +27,7 @@ export type Battle = {
   status: "WAITING" | "IN_PROGRESS" | "FINISHED";
   currentRound: number;
   spectatorCount: number;
+  updatedAt: string | Date;
 };
 
 // Full Battle Details for Auto-Fight

@@ -49,6 +49,7 @@ type Battle = {
   winnerId?: string;
   redScore?: number;
   blackScore?: number;
+  updatedAt: string | Date;
 };
 
 export default function ArenaPage({
