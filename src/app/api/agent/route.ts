@@ -145,7 +145,6 @@ export async function POST(req: Request) {
   }
 
   // Check if agent already exists
-  // @ts-expect-error -- Agent model might be missing in client
   const existingAgent = await prisma.agent.findUnique({
     where: { userId: user.id },
   });
@@ -160,7 +159,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    // @ts-expect-error -- Agent model might be missing in client
     const agent = await prisma.agent.create({
       data: {
         userId: user.id,
@@ -224,7 +222,6 @@ export async function PUT(req: Request) {
       );
     }
 
-    // @ts-expect-error -- Agent model might be missing in client
     const updatedAgent = await prisma.agent.update({
       where: { userId: user.id },
       data: {
